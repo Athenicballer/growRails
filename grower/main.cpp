@@ -68,66 +68,62 @@ float read_ultrasonic_distance(int trig_pin, int echo_pin);
 
 #include <iostream>
 
-int main(){
-    std::cout << "Hello from the Raspberry Pi DOING THE THIGNS!!" << std::endl;
+
+--- Main Program ---
+int main(int argc, char *argv[]) {
+    std::cout << "Starting PiGPIO Complex Controller..." << std::endl;
+
+    if (gpioInitialise() < 0) {
+        std::cerr << "PiGPIO initialization failed. Ensure pigpiod is running and you have privileges (sudo)." << std::endl;
+        return 1;
+    }
+
+    std::cout << "PiGPIO initialized successfully." << std::endl;
+    setup_gpios(); // Initialize all pins and I2C connections
+
+    // --- Complex Control Sequence (10 Cycles) ---
+    std::cout << "\nStarting 10-cycle environmental control loop..." << std::endl;
+
+    for (int i = 0; i < 10; ++i) {
+        float temp = read_temperature();
+        int soil = read_soil_moisture();
+        float dist1 = read_ultrasonic_distance(US1_TRIG_PIN, US1_ECHO_PIN);
+
+        std::cout << std::fixed << std::setprecision(2);
+        std::cout << "--- Cycle " << i + 1 << " ---" << std::endl;
+        std::cout << " Temp: " << temp << "°C | Soil: " << soil << " (Threshold: " << SOIL_WET_LEVEL << ")" << std::endl;
+        std::cout << " Dist 1: " << dist1 << " cm | ";
+        std::cout << " Dist 2: " << read_ultrasonic_distance(US2_TRIG_PIN, US2_ECHO_PIN) << " cm | ";
+        std::cout << " Dist 3: " << read_ultrasonic_distance(US3_TRIG_PIN, US3_ECHO_PIN) << " cm" << std::endl;
+
+        // --- Logic 1: Temperature Control (Motor 1) ---
+        if (temp > TEMP_THRESHOLD) {
+            std::cout << " [M1] Overheat: Running FORWARD to cool." << std::endl;
+            set_motor_direction(M1_DIR_PIN, true); 
+            set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
+        } else {
+            set_motor_speed(M1_PWM_PIN, 0);
+        }
+        
+        // --- Logic 2: Obstacle Avoidance (Motor 2 & 3) ---
+        if (dist1 < DISTANCE_MIN) {
+            std::cout << " [M2/M3] Obstacle detected! Running REVERSE." << std::endl;
+            set_motor_direction(M2_DIR_PIN, false);
+            set_motor_direction(M3_DIR_PIN, false);
+            set_motor_speed(M2_PWM_PIN, SPEED_FAST);
+            set_motor_speed(M3_PWM_PIN, SPEED_FAST);
+        } else {
+             set_motor_speed(M2_PWM_PIN, 0);
+             set_motor_speed(M3_PWM_PIN, 0);
+        }
+
+        sleep(3); // Wait 3 seconds before the next check
+    }
+
+    std::cout << "Control sequence complete. Cleaning up..." << std::endl;
+    cleanup_gpios(); // Clean up all pins and terminate pigpio
     return 0;
 }
-
-// --- Main Program ---
-// int main(int argc, char *argv[]) {
-//     std::cout << "Starting PiGPIO Complex Controller..." << std::endl;
-
-//     if (gpioInitialise() < 0) {
-//         std::cerr << "PiGPIO initialization failed. Ensure pigpiod is running and you have privileges (sudo)." << std::endl;
-//         return 1;
-//     }
-
-//     std::cout << "PiGPIO initialized successfully." << std::endl;
-//     setup_gpios(); // Initialize all pins and I2C connections
-
-//     // --- Complex Control Sequence (10 Cycles) ---
-//     std::cout << "\nStarting 10-cycle environmental control loop..." << std::endl;
-
-//     for (int i = 0; i < 10; ++i) {
-//         float temp = read_temperature();
-//         int soil = read_soil_moisture();
-//         float dist1 = read_ultrasonic_distance(US1_TRIG_PIN, US1_ECHO_PIN);
-
-//         std::cout << std::fixed << std::setprecision(2);
-//         std::cout << "--- Cycle " << i + 1 << " ---" << std::endl;
-//         std::cout << " Temp: " << temp << "°C | Soil: " << soil << " (Threshold: " << SOIL_WET_LEVEL << ")" << std::endl;
-//         std::cout << " Dist 1: " << dist1 << " cm | ";
-//         std::cout << " Dist 2: " << read_ultrasonic_distance(US2_TRIG_PIN, US2_ECHO_PIN) << " cm | ";
-//         std::cout << " Dist 3: " << read_ultrasonic_distance(US3_TRIG_PIN, US3_ECHO_PIN) << " cm" << std::endl;
-
-//         // --- Logic 1: Temperature Control (Motor 1) ---
-//         if (temp > TEMP_THRESHOLD) {
-//             std::cout << " [M1] Overheat: Running FORWARD to cool." << std::endl;
-//             set_motor_direction(M1_DIR_PIN, true); 
-//             set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
-//         } else {
-//             set_motor_speed(M1_PWM_PIN, 0);
-//         }
-        
-//         // --- Logic 2: Obstacle Avoidance (Motor 2 & 3) ---
-//         if (dist1 < DISTANCE_MIN) {
-//             std::cout << " [M2/M3] Obstacle detected! Running REVERSE." << std::endl;
-//             set_motor_direction(M2_DIR_PIN, false);
-//             set_motor_direction(M3_DIR_PIN, false);
-//             set_motor_speed(M2_PWM_PIN, SPEED_FAST);
-//             set_motor_speed(M3_PWM_PIN, SPEED_FAST);
-//         } else {
-//              set_motor_speed(M2_PWM_PIN, 0);
-//              set_motor_speed(M3_PWM_PIN, 0);
-//         }
-
-//         sleep(3); // Wait 3 seconds before the next check
-//     }
-
-//     std::cout << "Control sequence complete. Cleaning up..." << std::endl;
-//     cleanup_gpios(); // Clean up all pins and terminate pigpio
-//     return 0;
-// }
 
 
 
