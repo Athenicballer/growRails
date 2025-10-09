@@ -3,6 +3,7 @@
 #include <unistd.h> // For sleep
 #include <iomanip>  // For setprecision
 #include <cmath>    // For M_PI, etc. if needed
+#include <iostream>
 
 // --- System Configuration Constants ---
 
@@ -50,6 +51,7 @@ int soil_i2c_handle = -1;
 
 // --- Control Constants ---
 #define SPEED_MAX      255 // Max duty cycle for PWM
+#define SPEED_FAST     200
 #define SPEED_MODERATE 120 
 #define TEMP_THRESHOLD 25.0 // Celsius
 #define DISTANCE_MIN   20.0  // cm
@@ -66,7 +68,6 @@ float read_temperature();
 int read_soil_moisture(); // Returns a raw integer reading
 float read_ultrasonic_distance(int trig_pin, int echo_pin);
 
-#include <iostream>
 
 
 // --- Main Program ---
