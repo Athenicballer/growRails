@@ -69,7 +69,7 @@ float read_ultrasonic_distance(int trig_pin, int echo_pin);
 #include <iostream>
 
 
---- Main Program ---
+// --- Main Program ---
 int main(int argc, char *argv[]) {
     std::cout << "Starting PiGPIO Complex Controller..." << std::endl;
 
