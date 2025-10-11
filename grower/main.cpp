@@ -14,10 +14,10 @@ int soil_i2c_handle = -1;
 // Motor Pins (L298N)
 #define M1_PWM_PIN    18 // Pin 12 - Hardware PWM0 for speed (L298N ENA)
 #define M1_DIR_PIN    23 // Pin 16 - Digital output for direction (L298N IN1)
-// Note: L298N IN2 must be wired permanently to GND for this single-pin direction logic.
+#define M1_DIR2_PIN   27 // Pin 13 - Digital output for direction (L298N IN2) - NEW PIN REQUIRED
 #define M2_PWM_PIN    12 // Pin 32 - Software PWM for speed (L298N ENB)
 #define M2_DIR_PIN    24 // Pin 18 - Digital output for direction (L298N IN3)
-// Note: L298N IN4 must be wired permanently to GND for this single-pin direction logic.
+#define M2_DIR2_PIN   22 // Pin 15 - Digital output for direction (L298N IN4) - NEW PIN REQUIRED
 
 // Ultrasonic Sensor Pins (HC-SR04)
 #define US1_TRIG_PIN  5  // Pin 29 - Output
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
 
     // 1. Run Motor 1 FORWARD
     std::cout << " [M1] Running FORWARD..." << std::endl;
-    set_motor_direction(M1_DIR_PIN, true); // true = Forward
+    set_motor_direction(M1_DIR_PIN, true); // true = Forward (IN1=HIGH, IN2=LOW)
     set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
     sleep(2); // Run for 2 seconds
 
@@ -75,9 +75,9 @@ int main(int argc, char *argv[]) {
     set_motor_speed(M1_PWM_PIN, 0);
     sleep(1); // Wait 1 second
 
-    // 3. Run Motor 1 BACKWARD
+    // 3. Run Motor 1 BACKWARD (Should now work correctly)
     std::cout << " [M1] Running BACKWARD..." << std::endl;
-    set_motor_direction(M1_DIR_PIN, false); // false = Reverse
+    set_motor_direction(M1_DIR_PIN, false); // false = Reverse (IN1=LOW, IN2=HIGH)
     set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
     sleep(2); // Run for 2 seconds
 
@@ -135,10 +135,12 @@ void setup_gpios() {
     // M1 (HW PWM)
     gpioSetMode(M1_PWM_PIN, PI_OUTPUT);
     gpioSetMode(M1_DIR_PIN, PI_OUTPUT);
-
+    gpioSetMode(M1_DIR2_PIN, PI_OUTPUT); // NEW
+    
     // M2 (SW PWM)
     gpioSetMode(M2_PWM_PIN, PI_OUTPUT);
     gpioSetMode(M2_DIR_PIN, PI_OUTPUT);
+    gpioSetMode(M2_DIR2_PIN, PI_OUTPUT); // NEW
     gpioSetPWMfrequency(M2_PWM_PIN, 500); // Set software PWM frequency
     gpioSetPWMrange(M2_PWM_PIN, SPEED_MAX);
 
@@ -175,8 +177,10 @@ void cleanup_gpios() {
     // Set all used GPIOs back to input for safety
     gpioSetMode(M1_PWM_PIN, PI_INPUT);
     gpioSetMode(M1_DIR_PIN, PI_INPUT);
+    gpioSetMode(M1_DIR2_PIN, PI_INPUT); // NEW
     gpioSetMode(M2_PWM_PIN, PI_INPUT);
     gpioSetMode(M2_DIR_PIN, PI_INPUT);
+    gpioSetMode(M2_DIR2_PIN, PI_INPUT); // NEW
     gpioSetMode(US1_TRIG_PIN, PI_INPUT);
     gpioSetMode(US1_ECHO_PIN, PI_INPUT);
     gpioSetMode(US2_TRIG_PIN, PI_INPUT);
@@ -207,13 +211,31 @@ void set_motor_speed(int pwm_pin, int speed) {
 }
 
 /**
- * Sets the direction of a motor.
- * Assuming IN2/IN4 is wired to GND, true/HIGH sets one direction, false/LOW sets the reverse.
- * @param dir_pin The GPIO pin connected to the L298N IN1/IN3.
- * @param forward true for one direction (HIGH), false for the reverse (LOW).
+ * Sets the direction of a motor using two pins (IN1/IN2 or IN3/IN4).
+ * @param dir_pin The primary direction pin (IN1 or IN3).
+ * @param forward true for one direction (IN1/IN3=HIGH, IN2/IN4=LOW), false for reverse (IN1/IN3=LOW, IN2/IN4=HIGH).
  */
 void set_motor_direction(int dir_pin, bool forward) {
-    gpioWrite(dir_pin, forward ? 1 : 0);
+    int dir2_pin = -1; // The companion pin (IN2 for IN1, IN4 for IN3)
+
+    if (dir_pin == M1_DIR_PIN) {
+        dir2_pin = M1_DIR2_PIN;
+    } else if (dir_pin == M2_DIR_PIN) {
+        dir2_pin = M2_DIR2_PIN;
+    } else {
+        std::cerr << "Error: Unknown motor direction pin provided to set_motor_direction." << std::endl;
+        return;
+    }
+
+    if (forward) {
+        // Forward: Primary Pin (IN1/IN3) = HIGH, Companion Pin (IN2/IN4) = LOW
+        gpioWrite(dir_pin, PI_HIGH);
+        gpioWrite(dir2_pin, PI_LOW);
+    } else {
+        // Reverse: Primary Pin (IN1/IN3) = LOW, Companion Pin (IN2/IN4) = HIGH
+        gpioWrite(dir_pin, PI_LOW);
+        gpioWrite(dir2_pin, PI_HIGH);
+    }
 }
 
 /**
@@ -267,8 +289,11 @@ void handle_obstacle_avoidance() {
         set_motor_speed(M1_PWM_PIN, 0);
         set_motor_speed(M2_PWM_PIN, 0);
         sleep(1);
-        set_motor_direction(M1_DIR_PIN, false); // Reverse
+        
+        // Reverse requires setting IN1/IN3 to LOW and IN2/IN4 to HIGH
+        set_motor_direction(M1_DIR_PIN, false);
         set_motor_direction(M2_DIR_PIN, false);
+        
         set_motor_speed(M1_PWM_PIN, SPEED_FAST);
         set_motor_speed(M2_PWM_PIN, SPEED_FAST);
         sleep(1);
@@ -277,11 +302,6 @@ void handle_obstacle_avoidance() {
         std::cout << " | ACTION: Stopped and reversed to avoid obstacle." << std::endl;
     } else {
         std::cout << " | STATUS: Path is clear." << std::endl;
-        // Optionally put motion logic here, e.g., resume forward movement
-        // set_motor_direction(M1_DIR_PIN, true);
-        // set_motor_direction(M2_DIR_PIN, true);
-        // set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
-        // set_motor_speed(M2_PWM_PIN, SPEED_MODERATE);
     }
 }
 
@@ -290,9 +310,6 @@ void handle_obstacle_avoidance() {
  */
 int read_soil_moisture() {
     if (soil_i2c_handle < 0) return -1; // Error
-    // This is highly dependent on the ADC chip (e.g., ADS1115).
-    // Assuming a simple 10-bit or 12-bit return value.
-    // In a real application, you'd write a configuration register and then read the data register.
     // For now, return a mock value for demonstration.
     static int mock_moisture = 750;
     mock_moisture += (rand() % 100) - 50; // Jitter
@@ -306,8 +323,6 @@ int read_soil_moisture() {
  */
 double read_temperature() {
     if (temp_i2c_handle < 0) return -99.0; // Error
-    // This is highly dependent on the sensor (e.g., BMP280, BME280).
-    // In a real application, you'd perform a series of I2C reads and calculations.
     // For now, return a mock value for demonstration.
     static double mock_temp = 25.5;
     mock_temp += (rand() % 20 - 10) / 10.0; // Jitter +/- 1.0 C
