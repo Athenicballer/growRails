@@ -27,6 +27,11 @@ int soil_i2c_handle = -1;
 #define US3_TRIG_PIN  21 // Pin 40 - Output
 #define US3_ECHO_PIN  26 // Pin 37 - Input
 
+// --- NEW SENSOR US4 PINS ---
+#define US4_TRIG_PIN  17 // Pin 11 - Output (Trig)
+#define US4_ECHO_PIN  27 // Pin 13 - Input (Echo)
+// ---------------------------
+
 // I2C Definitions
 #define I2C_BUS         1    // Raspberry Pi's standard I2C bus (Pins 3 & 5)
 #define TEMP_I2C_ADDRESS    0x76 // Example I2C address for Temperature Sensor
@@ -91,18 +96,31 @@ int main(int argc, char *argv[]) {
     while (true) {
         // --- 1. Read Sensors ---
         double distance_front = read_ultrasonic(US1_TRIG_PIN, US1_ECHO_PIN);
+        // Note: You can call US2/US3 here if wired, but we'll focus on the new US4.
+
+        // --- NEW SENSOR READING (US4) ---
+        double distance_rear = read_ultrasonic(US4_TRIG_PIN, US4_ECHO_PIN);
+        
         int soil_moisture = read_soil_moisture();
         double air_temp = read_temperature();
 
         // --- 2. Print Status ---
         std::cout << "\n--- Status Report ---" << std::endl;
         std::cout << std::fixed << std::setprecision(2);
-        std::cout << " | Front Distance: " << distance_front << " cm" << std::endl;
+        std::cout << " | Front Distance (US1): " << distance_front << " cm" << std::endl;
+        // --- NEW SENSOR OUTPUT (US4) ---
+        std::cout << " | Rear Distance (US4): " << distance_rear << " cm" << std::endl;
+        
         std::cout << " | Soil Moisture: " << soil_moisture << " (Threshold: " << SOIL_WET_LEVEL << ")" << std::endl;
         std::cout << " | Air Temperature: " << air_temp << " C" << std::endl;
 
         // --- 3. Decision Logic ---
-        handle_obstacle_avoidance();
+        // Example logic for the rear sensor
+        if (distance_rear < DISTANCE_MIN && distance_rear > 0) { // Check > 0 to ignore errors
+            std::cout << " | WARNING: Object close behind! Reversing motion is restricted." << std::endl;
+        }
+        
+        handle_obstacle_avoidance(); // This still uses US1 (front sensor)
 
         if (soil_moisture < SOIL_WET_LEVEL) {
             std::cout << " | ACTION: Soil is dry. Watering needed." << std::endl;
@@ -161,6 +179,11 @@ void setup_gpios() {
     gpioSetMode(US3_TRIG_PIN, PI_OUTPUT);
     gpioSetMode(US3_ECHO_PIN, PI_INPUT);
     gpioWrite(US3_TRIG_PIN, 0);
+    
+    // S4 (NEW SENSOR SETUP)
+    gpioSetMode(US4_TRIG_PIN, PI_OUTPUT);
+    gpioSetMode(US4_ECHO_PIN, PI_INPUT);
+    gpioWrite(US4_TRIG_PIN, 0);
 
     sleep(1); // Wait for pins to settle
 }
@@ -187,6 +210,10 @@ void cleanup_gpios() {
     gpioSetMode(US2_ECHO_PIN, PI_INPUT);
     gpioSetMode(US3_TRIG_PIN, PI_INPUT);
     gpioSetMode(US3_ECHO_PIN, PI_INPUT);
+    
+    // S4 (NEW CLEANUP)
+    gpioSetMode(US4_TRIG_PIN, PI_INPUT);
+    gpioSetMode(US4_ECHO_PIN, PI_INPUT);
 
     // Terminate pigpio
     gpioTerminate();
