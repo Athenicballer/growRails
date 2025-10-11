@@ -1,310 +1,317 @@
 #include <iostream>
+#include <unistd.h>
 #include <pigpio.h>
-#include <unistd.h> // For sleep
-#include <iomanip>  // For setprecision
-#include <cmath>    // For M_PI, etc. if needed
-#include <iostream>
+#include <iomanip> // For setprecision
+#include <cmath>   // For M_PI, etc. if needed
 
-// --- System Configuration Constants ---
-
-// The two motors will be controlled as follows:
-// Motor 1: Hardware PWM (GPIO 18) for speed, Digital Pin (GPIO 23) for direction.
-// Motor 2: Software PWM (GPIO 12) for speed, Digital Pin (GPIO 24) for direction.
-
-// --- Motor Control Pin Definitions (BCM Numbering) ---
-
-// Motor 1 (Hardware PWM) - Connected to L298N Motor A
-#define M1_PWM_PIN    18 // Pin 12 - Hardware PWM0 for speed (L298N ENA)
-#define M1_DIR_PIN    23 // Pin 16 - Digital output for direction (L298N IN1)
-
-// Motor 2 (Software PWM) - Connected to L298N Motor B
-#define M2_PWM_PIN    12 // Pin 32 - Software PWM for speed (L298N ENB)
-#define M2_DIR_PIN    24 // Pin 18 - Digital output for direction (L298N IN3)
-
-// --- Ultrasonic Sensor Definitions (3 Sensors) ---
-
-// Sensor 1 (Front/Left)
-#define US1_TRIG_PIN  5  // Pin 29 - Output
-#define US1_ECHO_PIN  6  // Pin 31 - Input
-// Sensor 2 (Center)
-#define US2_TRIG_PIN  16 // Pin 36 - Output
-#define US2_ECHO_PIN  20 // Pin 38 - Input
-// Sensor 3 (Back/Right)
-#define US3_TRIG_PIN  21 // Pin 40 - Output
-#define US3_ECHO_PIN  26 // Pin 37 - Input
-
-// --- I2C Sensor Definitions (Temperature and Soil Probe) ---
-#define I2C_BUS       1    // Raspberry Pi's standard I2C bus (Pins 3 & 5)
-
-// Sensor 1: Temperature Sensor (BMP280/Placeholder)
-#define TEMP_I2C_ADDRESS   0x76 // Example I2C address for Temperature Sensor
-int temp_i2c_handle = -1; 
-
-// Sensor 2: Soil Moisture/Probe (Assuming I2C interface, e.g., external ADC or I2C sensor)
-#define SOIL_I2C_ADDRESS   0x48 // Example I2C address for a common ADC chip
+// --- Global Variables ---
+// Handles for I2C communication
+int temp_i2c_handle = -1;
 int soil_i2c_handle = -1;
 
-// --- Control Constants ---
-#define SPEED_MAX      255 // Max duty cycle for PWM
-#define SPEED_FAST     200 // Defined SPEED_FAST for obstacle avoidance
-#define SPEED_MODERATE 120 
-#define TEMP_THRESHOLD 25.0 // Celsius
-#define DISTANCE_MIN   20.0  // cm
-#define SOIL_WET_LEVEL 500  // Example analog reading threshold
+// --- Pin Definitions (BCM Numbering) ---
+
+// Motor Pins (L298N)
+#define M1_PWM_PIN    18 // Pin 12 - Hardware PWM0 for speed (L298N ENA)
+#define M1_DIR_PIN    23 // Pin 16 - Digital output for direction (L298N IN1)
+// Note: L298N IN2 must be wired permanently to GND for this single-pin direction logic.
+#define M2_PWM_PIN    12 // Pin 32 - Software PWM for speed (L298N ENB)
+#define M2_DIR_PIN    24 // Pin 18 - Digital output for direction (L298N IN3)
+// Note: L298N IN4 must be wired permanently to GND for this single-pin direction logic.
+
+// Ultrasonic Sensor Pins (HC-SR04)
+#define US1_TRIG_PIN  5  // Pin 29 - Output
+#define US1_ECHO_PIN  6  // Pin 31 - Input
+#define US2_TRIG_PIN  16 // Pin 36 - Output
+#define US2_ECHO_PIN  20 // Pin 38 - Input
+#define US3_TRIG_PIN  21 // Pin 40 - Output
+#define US3_ECHO_PIN  26 // Pin 37 - Input
+
+// I2C Definitions
+#define I2C_BUS         1    // Raspberry Pi's standard I2C bus (Pins 3 & 5)
+#define TEMP_I2C_ADDRESS    0x76 // Example I2C address for Temperature Sensor
+#define SOIL_I2C_ADDRESS    0x48 // Example I2C address for a common ADC chip
+
+// System Constants
+#define SPEED_MAX       255 // Max duty cycle for PWM
+#define SPEED_FAST      200 // Defined SPEED_FAST for obstacle avoidance
+#define SPEED_MODERATE  150 // Standard running speed
+#define DISTANCE_MIN    20.0 // cm
+#define SOIL_WET_LEVEL  500 // Example analog reading threshold
 
 // --- Function Prototypes ---
 void setup_gpios();
 void cleanup_gpios();
-
 void set_motor_speed(int pwm_pin, int speed);
 void set_motor_direction(int dir_pin, bool forward);
-
-float read_temperature();
-int read_soil_moisture(); // Returns a raw integer reading
-float read_ultrasonic_distance(int trig_pin, int echo_pin);
-
-
+double read_ultrasonic(int trig_pin, int echo_pin);
+void handle_obstacle_avoidance();
+int read_soil_moisture();
+double read_temperature();
 
 // --- Main Program ---
 int main(int argc, char *argv[]) {
-    std::cout << "Starting PiGPIO Complex Controller (2 Motors)..." << std::endl;
+    std::cout << "Starting PiGPIO Complex Controller (2 Motors)..." << std::endl;
 
-    if (gpioInitialise() < 0) {
-        std::cerr << "PiGPIO initialization failed. Ensure pigpiod is running and you have privileges (sudo)." << std::endl;
-        return 1;
-    }
+    if (gpioInitialise() < 0) {
+        std::cerr << "PiGPIO initialization failed. Ensure pigpiod is running and you have privileges (sudo)." << std::endl;
+        return 1;
+    }
 
-    std::cout << "PiGPIO initialized successfully." << std::endl;
-    setup_gpios(); // Initialize all pins and I2C connections
+    std::cout << "PiGPIO initialized successfully." << std::endl;
+    setup_gpios(); // Initialize all pins and I2C connections
 
-    // --- Motor Direction Demonstration Sequence (M1) ---
-    std::cout << "\nStarting Motor 1 Direction Test (Forward then Reverse)..." << std::endl;
+    // --- Motor Direction Demonstration Sequence (M1) ---
+    std::cout << "\nStarting Motor 1 Direction Test (Forward then Reverse)..." << std::endl;
 
-    // 1. Run Motor 1 FORWARD
-    std::cout << " [M1] Running FORWARD..." << std::endl;
-    set_motor_direction(M1_DIR_PIN, true); // true = Forward
-    set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
-    sleep(2); // Run for 2 seconds
+    // 1. Run Motor 1 FORWARD
+    std::cout << " [M1] Running FORWARD..." << std::endl;
+    set_motor_direction(M1_DIR_PIN, true); // true = Forward
+    set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
+    sleep(2); // Run for 2 seconds
 
-    // 2. Stop Motor 1 momentarily
-    std::cout << " [M1] Stopping..." << std::endl;
-    set_motor_speed(M1_PWM_PIN, 0);
-    sleep(1); // Wait 1 second
+    // 2. Stop Motor 1 momentarily
+    std::cout << " [M1] Stopping..." << std::endl;
+    set_motor_speed(M1_PWM_PIN, 0);
+    sleep(1); // Wait 1 second
 
-    // 3. Run Motor 1 BACKWARD
-    std::cout << " [M1] Running BACKWARD..." << std::endl;
-    set_motor_direction(M1_DIR_PIN, false); // false = Reverse
-    set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
-    sleep(2); // Run for 2 seconds
+    // 3. Run Motor 1 BACKWARD
+    std::cout << " [M1] Running BACKWARD..." << std::endl;
+    set_motor_direction(M1_DIR_PIN, false); // false = Reverse
+    set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
+    sleep(2); // Run for 2 seconds
 
-    // 4. Final Stop
-    std::cout << " [M1] Stopping." << std::endl;
-    set_motor_speed(M1_PWM_PIN, 0);
+    // 4. Final Stop
+    std::cout << " [M1] Stopping." << std::endl;
+    set_motor_speed(M1_PWM_PIN, 0);
+    sleep(1);
 
-    // --- Original Complex Control Sequence (10 Cycles) - COMMENTED OUT FOR DEMO ---
-    /*
-    std::cout << "\nStarting 10-cycle environmental control loop..." << std::endl;
+    // --- Main Control Loop (Placeholder for real robot logic) ---
+    std::cout << "\nStarting main control loop (Placeholder). Press Ctrl+C to exit." << std::endl;
+    while (true) {
+        // --- 1. Read Sensors ---
+        double distance_front = read_ultrasonic(US1_TRIG_PIN, US1_ECHO_PIN);
+        int soil_moisture = read_soil_moisture();
+        double air_temp = read_temperature();
 
-    for (int i = 0; i < 10; ++i) {
-        float temp = read_temperature();
-        int soil = read_soil_moisture();
-        float dist1 = read_ultrasonic_distance(US1_TRIG_PIN, US1_ECHO_PIN);
+        // --- 2. Print Status ---
+        std::cout << "\n--- Status Report ---" << std::endl;
+        std::cout << std::fixed << std::setprecision(2);
+        std::cout << " | Front Distance: " << distance_front << " cm" << std::endl;
+        std::cout << " | Soil Moisture: " << soil_moisture << " (Threshold: " << SOIL_WET_LEVEL << ")" << std::endl;
+        std::cout << " | Air Temperature: " << air_temp << " C" << std::endl;
 
-        std::cout << std::fixed << std::setprecision(2);
-        std::cout << "--- Cycle " << i + 1 << " ---" << std::endl;
-        std::cout << " Temp: " << temp << "°C | Soil: " << soil << " (Threshold: " << SOIL_WET_LEVEL << ")" << std::endl;
-        std::cout << " Dist 1: " << dist1 << " cm | ";
-        std::cout << " Dist 2: " << read_ultrasonic_distance(US2_TRIG_PIN, US2_ECHO_PIN) << " cm | ";
-        std::cout << " Dist 3: " << read_ultrasonic_distance(US3_TRIG_PIN, US3_ECHO_PIN) << " cm" << std::endl;
+        // --- 3. Decision Logic ---
+        handle_obstacle_avoidance();
 
-        // --- Logic 1: Temperature Control (Motor 1) ---
-        if (temp > TEMP_THRESHOLD) {
-            std::cout << " [M1] Overheat: Running FORWARD to cool." << std::endl;
-            set_motor_direction(M1_DIR_PIN, true); 
-            set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
-        } else {
-            set_motor_speed(M1_PWM_PIN, 0);
-        }
-        
-        // --- Logic 2: Obstacle Avoidance (Motor 2) ---
-        if (dist1 < DISTANCE_MIN) {
-            std::cout << " [M2] Obstacle detected! Running REVERSE." << std::endl;
-            set_motor_direction(M2_DIR_PIN, false);
-            set_motor_speed(M2_PWM_PIN, SPEED_FAST);
-        } else {
-             set_motor_speed(M2_PWM_PIN, 0);
-        }
+        if (soil_moisture < SOIL_WET_LEVEL) {
+            std::cout << " | ACTION: Soil is dry. Watering needed." << std::endl;
+        } else {
+            std::cout << " | STATUS: Soil moisture OK." << std::endl;
+        }
 
-        sleep(3); // Wait 3 seconds before the next check
-    }
-    */
+        sleep(3); // Check sensors every 3 seconds
+    }
 
-    std::cout << "Control sequence complete. Cleaning up..." << std::endl;
-    cleanup_gpios(); // Clean up all pins and terminate pigpio
-    return 0;
+    // --- Cleanup (Unreachable in infinite loop but good practice) ---
+    std::cout << "Control sequence complete. Cleaning up..." << std::endl;
+    cleanup_gpios(); // Clean up all pins and terminate pigpio
+    return 0;
 }
 
-
-
-// --- Setup and Cleanup Functions ---
+// --- Function Implementations ---
 
 void setup_gpios() {
-    std::cout << "Setting up GPIOs and I2C connections..." << std::endl;
+    std::cout << "Setting up GPIOs and I2C connections..." << std::endl;
 
-    // --- I2C Setup ---
-    temp_i2c_handle = i2cOpen(I2C_BUS, TEMP_I2C_ADDRESS, 0);
-    soil_i2c_handle = i2cOpen(I2C_BUS, SOIL_I2C_ADDRESS, 0); 
-    
-    if (temp_i2c_handle < 0) std::cerr << " I2C Temp Sensor failed to open." << std::endl;
-    if (soil_i2c_handle < 0) std::cerr << " I2C Soil Sensor failed to open." << std::endl;
+    // --- I2C Setup ---
+    temp_i2c_handle = i2cOpen(I2C_BUS, TEMP_I2C_ADDRESS, 0);
+    soil_i2c_handle = i2cOpen(I2C_BUS, SOIL_I2C_ADDRESS, 0);
 
-    // --- Motor Pin Setup ---
-    // M1 (HW PWM)
-    gpioSetMode(M1_PWM_PIN, PI_OUTPUT);
-    gpioSetMode(M1_DIR_PIN, PI_OUTPUT);
-    
-    // M2 (SW PWM)
-    gpioSetMode(M2_PWM_PIN, PI_OUTPUT);
-    gpioSetMode(M2_DIR_PIN, PI_OUTPUT);
-    gpioSetPWMfrequency(M2_PWM_PIN, 500); // Set software PWM frequency
-    gpioSetPWMrange(M2_PWM_PIN, SPEED_MAX);
-    
-    // Initial stop for all motors
-    set_motor_speed(M1_PWM_PIN, 0);
-    set_motor_speed(M2_PWM_PIN, 0);
+    if (temp_i2c_handle < 0) std::cerr << " I2C Temp Sensor failed to open." << std::endl;
+    if (soil_i2c_handle < 0) std::cerr << " I2C Soil Sensor failed to open." << std::endl;
 
-    // --- Ultrasonic Sensor Setup ---
-    // S1
-    gpioSetMode(US1_TRIG_PIN, PI_OUTPUT);
-    gpioSetMode(US1_ECHO_PIN, PI_INPUT);
-    gpioWrite(US1_TRIG_PIN, 0); // Ensure trigger pin is low initially
-    // S2
-    gpioSetMode(US2_TRIG_PIN, PI_OUTPUT);
-    gpioSetMode(US2_ECHO_PIN, PI_INPUT);
-    gpioWrite(US2_TRIG_PIN, 0);
-    // S3
-    gpioSetMode(US3_TRIG_PIN, PI_OUTPUT);
-    gpioSetMode(US3_ECHO_PIN, PI_INPUT);
-    gpioWrite(US3_TRIG_PIN, 0);
+    // --- Motor Pin Setup ---
+    // M1 (HW PWM)
+    gpioSetMode(M1_PWM_PIN, PI_OUTPUT);
+    gpioSetMode(M1_DIR_PIN, PI_OUTPUT);
 
-    sleep(1); // Wait for pins to settle
+    // M2 (SW PWM)
+    gpioSetMode(M2_PWM_PIN, PI_OUTPUT);
+    gpioSetMode(M2_DIR_PIN, PI_OUTPUT);
+    gpioSetPWMfrequency(M2_PWM_PIN, 500); // Set software PWM frequency
+    gpioSetPWMrange(M2_PWM_PIN, SPEED_MAX);
+
+    // Initial stop for all motors
+    set_motor_speed(M1_PWM_PIN, 0);
+    set_motor_speed(M2_PWM_PIN, 0);
+
+    // --- Ultrasonic Sensor Setup ---
+    // S1
+    gpioSetMode(US1_TRIG_PIN, PI_OUTPUT);
+    gpioSetMode(US1_ECHO_PIN, PI_INPUT);
+    gpioWrite(US1_TRIG_PIN, 0); // Ensure trigger pin is low initially
+    // S2
+    gpioSetMode(US2_TRIG_PIN, PI_OUTPUT);
+    gpioSetMode(US2_ECHO_PIN, PI_INPUT);
+    gpioWrite(US2_TRIG_PIN, 0);
+    // S3
+    gpioSetMode(US3_TRIG_PIN, PI_OUTPUT);
+    gpioSetMode(US3_ECHO_PIN, PI_INPUT);
+    gpioWrite(US3_TRIG_PIN, 0);
+
+    sleep(1); // Wait for pins to settle
 }
 
 void cleanup_gpios() {
-    // Close I2C handles
-    if (temp_i2c_handle >= 0) i2cClose(temp_i2c_handle);
-    if (soil_i2c_handle >= 0) i2cClose(soil_i2c_handle);
+    // Stop all motors
+    set_motor_speed(M1_PWM_PIN, 0);
+    set_motor_speed(M2_PWM_PIN, 0);
 
-    // Set all used GPIOs back to input for safety
-    // Motor 3 pins (13, 25) have been removed from this list.
-    int pins[] = {M1_PWM_PIN, M1_DIR_PIN, M2_PWM_PIN, M2_DIR_PIN, 
-                  US1_TRIG_PIN, US1_ECHO_PIN, US2_TRIG_PIN, US2_ECHO_PIN, US3_TRIG_PIN, US3_ECHO_PIN};
-    for (int pin : pins) {
-        gpioSetMode(pin, PI_INPUT);
-    }
+    // Close I2C handles
+    if (temp_i2c_handle >= 0) i2cClose(temp_i2c_handle);
+    if (soil_i2c_handle >= 0) i2cClose(soil_i2c_handle);
 
-    // Terminate the pigpio library
-    gpioTerminate();
-    std::cout << "PiGPIO terminated. Program finished." << std::endl;
+    // Set all used GPIOs back to input for safety
+    gpioSetMode(M1_PWM_PIN, PI_INPUT);
+    gpioSetMode(M1_DIR_PIN, PI_INPUT);
+    gpioSetMode(M2_PWM_PIN, PI_INPUT);
+    gpioSetMode(M2_DIR_PIN, PI_INPUT);
+    gpioSetMode(US1_TRIG_PIN, PI_INPUT);
+    gpioSetMode(US1_ECHO_PIN, PI_INPUT);
+    gpioSetMode(US2_TRIG_PIN, PI_INPUT);
+    gpioSetMode(US2_ECHO_PIN, PI_INPUT);
+    gpioSetMode(US3_TRIG_PIN, PI_INPUT);
+    gpioSetMode(US3_ECHO_PIN, PI_INPUT);
+
+    // Terminate pigpio
+    gpioTerminate();
+    std::cout << "PiGPIO terminated." << std::endl;
 }
 
-// --- Motor Helper Functions ---
-
 /**
- * @brief Sets the motor speed using PWM (either hardware or software).
- * @param pwm_pin The GPIO pin defined as the PWM output.
- * @param speed Duty cycle from 0 (off) to SPEED_MAX (full speed).
- */
+ * Sets the speed of a motor by controlling the PWM duty cycle.
+ * @param pwm_pin The GPIO pin connected to the L298N ENA/ENB.
+ * @param speed The duty cycle (0-255).
+ */
 void set_motor_speed(int pwm_pin, int speed) {
-    // Use gpioPWM for both hardware and software PWM (pigpio handles the difference)
-    gpioPWM(pwm_pin, speed);
+    if (speed < 0 || speed > SPEED_MAX) {
+        speed = (speed < 0) ? 0 : SPEED_MAX;
+    }
+    // M1_PWM_PIN (18) uses Hardware PWM, M2_PWM_PIN (12) uses Software PWM
+    if (pwm_pin == M1_PWM_PIN) {
+        gpioHardwarePWM(pwm_pin, 500, speed * 1000000 / SPEED_MAX); // 500 Hz, duty cycle in microseconds (0-1,000,000)
+    } else {
+        gpioPWM(pwm_pin, speed); // Set software PWM duty cycle (0-255)
+    }
 }
 
 /**
- * @brief Sets the motor direction by toggling a digital pin.
- * @param dir_pin The GPIO pin defined as the direction output.
- * @param forward true for one direction (e.g., HIGH), false for the other (e.g., LOW).
- */
+ * Sets the direction of a motor.
+ * Assuming IN2/IN4 is wired to GND, true/HIGH sets one direction, false/LOW sets the reverse.
+ * @param dir_pin The GPIO pin connected to the L298N IN1/IN3.
+ * @param forward true for one direction (HIGH), false for the reverse (LOW).
+ */
 void set_motor_direction(int dir_pin, bool forward) {
-    int level = forward ? 1 : 0;
-    gpioWrite(dir_pin, level);
-}
-
-// --- Sensor Helper Functions ---
-
-/**
- * @brief Reads a dummy temperature value using the I2C handle.
- * @return Temperature in Celsius.
- */
-float read_temperature() {
-    if (temp_i2c_handle < 0) return 20.0; // Return a safe default if I2C failed
-
-    // --- Placeholder logic for demonstration ---
-    static float current_simulated_temp = 20.0; 
-    current_simulated_temp += 0.5; 
-    if (current_simulated_temp > 30.0) { current_simulated_temp = 20.0; }
-    return current_simulated_temp;
+    gpioWrite(dir_pin, forward ? 1 : 0);
 }
 
 /**
- * @brief Reads a dummy soil moisture value using the I2C handle.
- * @return Raw integer reading (simulated ADC value).
- */
+ * Reads the distance from an ultrasonic sensor.
+ * @param trig_pin The trigger GPIO pin.
+ * @param echo_pin The echo GPIO pin.
+ * @return Distance in centimeters, or a very high value on timeout/error.
+ */
+double read_ultrasonic(int trig_pin, int echo_pin) {
+    // 1. Trigger the sensor
+    gpioWrite(trig_pin, PI_HIGH);
+    gpioDelay(10); // 10 microsecond pulse
+    gpioWrite(trig_pin, PI_LOW);
+
+    long start_time = gpioTick();
+    long end_time = start_time;
+    long timeout = 50000; // 50ms timeout for max distance ~8m
+
+    // 2. Wait for the echo start (HIGH)
+    while (gpioRead(echo_pin) == PI_LOW && (gpioTick() - start_time) < timeout) {
+        start_time = gpioTick();
+    }
+
+    // 3. Wait for the echo end (LOW)
+    while (gpioRead(echo_pin) == PI_HIGH && (gpioTick() - start_time) < timeout) {
+        end_time = gpioTick();
+    }
+
+    // Check for timeout
+    if (gpioTick() - start_time >= timeout || end_time == start_time) {
+        return 999.0; // Indicate error/timeout (max distance)
+    }
+
+    long time_taken = end_time - start_time;
+    // Speed of sound = 343 m/s = 0.0343 cm/us
+    // Distance = (Time * Speed of Sound) / 2
+    double distance = (double)time_taken * 0.0343 / 2.0;
+
+    return distance;
+}
+
+/**
+ * Placeholder function for obstacle avoidance logic.
+ */
+void handle_obstacle_avoidance() {
+    double distance = read_ultrasonic(US1_TRIG_PIN, US1_ECHO_PIN);
+
+    if (distance < DISTANCE_MIN) {
+        std::cout << " | WARNING: Obstacle detected at " << distance << " cm!" << std::endl;
+        // Simple stop and reverse
+        set_motor_speed(M1_PWM_PIN, 0);
+        set_motor_speed(M2_PWM_PIN, 0);
+        sleep(1);
+        set_motor_direction(M1_DIR_PIN, false); // Reverse
+        set_motor_direction(M2_DIR_PIN, false);
+        set_motor_speed(M1_PWM_PIN, SPEED_FAST);
+        set_motor_speed(M2_PWM_PIN, SPEED_FAST);
+        sleep(1);
+        set_motor_speed(M1_PWM_PIN, 0);
+        set_motor_speed(M2_PWM_PIN, 0);
+        std::cout << " | ACTION: Stopped and reversed to avoid obstacle." << std::endl;
+    } else {
+        std::cout << " | STATUS: Path is clear." << std::endl;
+        // Optionally put motion logic here, e.g., resume forward movement
+        // set_motor_direction(M1_DIR_PIN, true);
+        // set_motor_direction(M2_DIR_PIN, true);
+        // set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
+        // set_motor_speed(M2_PWM_PIN, SPEED_MODERATE);
+    }
+}
+
+/**
+ * Placeholder for reading soil moisture using I2C ADC.
+ */
 int read_soil_moisture() {
-    if (soil_i2c_handle < 0) return 300; // Return a safe default
-
-    // --- Placeholder logic for demonstration ---
-    // Simulate a moisture reading that fluctuates
-    static int current_simulated_soil = 300; 
-    if (rand() % 2 == 0) {
-        current_simulated_soil += 50;
-    } else {
-        current_simulated_soil -= 50;
-    }
-    if (current_simulated_soil < 100) current_simulated_soil = 700;
-    if (current_simulated_soil > 800) current_simulated_soil = 300;
-
-    return current_simulated_soil;
+    if (soil_i2c_handle < 0) return -1; // Error
+    // This is highly dependent on the ADC chip (e.g., ADS1115).
+    // Assuming a simple 10-bit or 12-bit return value.
+    // In a real application, you'd write a configuration register and then read the data register.
+    // For now, return a mock value for demonstration.
+    static int mock_moisture = 750;
+    mock_moisture += (rand() % 100) - 50; // Jitter
+    if (mock_moisture > 900) mock_moisture = 900;
+    if (mock_moisture < 100) mock_moisture = 100;
+    return mock_moisture;
 }
 
 /**
- * @brief Reads the distance from an ultrasonic sensor (HC-SR04).
- * Uses gpioTrigger to send a pulse and waits for the echo pulse.
- * @param trig_pin The GPIO pin connected to the TRIG pin of the sensor.
- * @param echo_pin The GPIO pin connected to the ECHO pin of the sensor.
- * @return Distance in centimeters (cm).
- */
-float read_ultrasonic_distance(int trig_pin, int echo_pin) {
-    // Distance = (Time of Flight * Speed of Sound) / 2
-    // Speed of sound = 34300 cm/s or 34.3 cm/us
-    const float SOUND_SPEED_US_CM = 0.0343f; 
-    
-    // Send a 10us pulse to the trigger pin
-    gpioTrigger(trig_pin, 10, 1); 
-
-    // Wait for the echo pin to go HIGH (start of pulse)
-    long start_time = gpioTick();
-    while (gpioRead(echo_pin) == 0 && (gpioTick() - start_time) < 50000) { /* timeout */ }
-
-    long pulse_start = gpioTick();
-
-    // Wait for the echo pin to go LOW (end of pulse)
-    long timeout_start = gpioTick();
-    while (gpioRead(echo_pin) == 1 && (gpioTick() - timeout_start) < 50000) { /* timeout */ }
-
-    long pulse_end = gpioTick();
-
-    // Calculate pulse width (duration) in microseconds
-    long pulse_duration = pulse_end - pulse_start;
-
-    // Convert duration to distance in cm
-    // Division by 2 accounts for the signal traveling out and back.
-    float distance_cm = (float)pulse_duration * SOUND_SPEED_US_CM / 2.0f; 
-
-    // Filter out obvious noise/bad readings
-    if (distance_cm > 400.0f || distance_cm < 2.0f) {
-        return -1.0f; // Indicates a measurement error or out of range
-    }
-
-    return distance_cm;
+ * Placeholder for reading temperature from an I2C sensor.
+ */
+double read_temperature() {
+    if (temp_i2c_handle < 0) return -99.0; // Error
+    // This is highly dependent on the sensor (e.g., BMP280, BME280).
+    // In a real application, you'd perform a series of I2C reads and calculations.
+    // For now, return a mock value for demonstration.
+    static double mock_temp = 25.5;
+    mock_temp += (rand() % 20 - 10) / 10.0; // Jitter +/- 1.0 C
+    if (mock_temp > 30.0) mock_temp = 30.0;
+    if (mock_temp < 20.0) mock_temp = 20.0;
+    return mock_temp;
 }
