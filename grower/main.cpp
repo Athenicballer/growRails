@@ -41,7 +41,7 @@ int soil_i2c_handle = -1;
 #define SPEED_MAX       255 // Max duty cycle for PWM
 #define SPEED_FAST      200 // Defined SPEED_FAST for obstacle avoidance
 #define SPEED_MODERATE  150 // Standard running speed
-#define DISTANCE_MIN    20.0 // cm
+#define DISTANCE_MIN    10.0 // cm
 #define SOIL_WET_LEVEL  500 // Example analog reading threshold
 
 // --- Function Prototypes ---
@@ -128,7 +128,12 @@ int main(int argc, char *argv[]) {
             std::cout << " | STATUS: Soil moisture OK." << std::endl;
         }
 
-        sleep(3); // Check sensors every 3 seconds
+        std::cout << " [M1] Running FORWARD..." << std::endl;
+        set_motor_direction(M1_DIR_PIN, true); // true = Forward (IN1=HIGH, IN2=LOW)
+        set_motor_speed(M1_PWM_PIN, SPEED_MODERATE);
+        sleep(2); // Run for 2 seconds
+
+        // sleep(3); // Check sensors every 3 seconds
     }
 
     // --- Cleanup (Unreachable in infinite loop but good practice) ---
