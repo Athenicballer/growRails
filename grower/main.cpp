@@ -313,7 +313,7 @@ double read_ultrasonic(int trig_pin, int echo_pin) {
  * Placeholder function for obstacle avoidance logic.
  */
 void handle_obstacle_avoidance() {
-    double distance = read_ultrasonic(US1_TRIG_PIN, US1_ECHO_PIN);
+    double distance = read_ultrasonic(US4_TRIG_PIN, US4_ECHO_PIN);
 
     if (distance < DISTANCE_MIN) {
         std::cout << " | WARNING: Obstacle detected at " << distance << " cm!" << std::endl;
