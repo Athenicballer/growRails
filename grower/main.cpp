@@ -25,11 +25,11 @@ int soil_i2c_handle = -1;
 #define US2_TRIG_PIN  16 // Pin 36 - Output
 #define US2_ECHO_PIN  20 // Pin 38 - Input
 #define US3_TRIG_PIN  21 // Pin 40 - Output
-#define US3_ECHO_PIN  26 // Pin 37 - Input
+#define US3_ECHO_PIN  27 // Pin 37 - Input
 
 // --- NEW SENSOR US4 PINS ---
 #define US4_TRIG_PIN  17 // Pin 11 - Output (Trig)
-#define US4_ECHO_PIN  27 // Pin 13 - Input (Echo)
+#define US4_ECHO_PIN  26 // Pin 13 - Input (Echo)
 // ---------------------------
 
 // I2C Definitions
