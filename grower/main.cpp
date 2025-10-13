@@ -277,6 +277,7 @@ void set_motor_direction(int dir_pin, bool forward) {
  * @return Distance in centimeters, or a very high value on timeout/error.
  */
 double read_ultrasonic(int trig_pin, int echo_pin) {
+    sleep(1);
     // 1. Trigger the sensor
     gpioWrite(trig_pin, PI_HIGH);
     gpioDelay(10); // 10 microsecond pulse
