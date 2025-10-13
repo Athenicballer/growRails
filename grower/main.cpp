@@ -313,6 +313,8 @@ double read_ultrasonic(int trig_pin, int echo_pin) {
  * Placeholder function for obstacle avoidance logic.
  */
 void handle_obstacle_avoidance() {
+    std::cout << " | adaswdas " << std::endl;
+
     double distance = read_ultrasonic(US4_TRIG_PIN, US4_ECHO_PIN);
     std::cout << " | handle_obstacle_avoidance (US1): " << distance << " cm" << std::endl;
 
