@@ -314,6 +314,7 @@ double read_ultrasonic(int trig_pin, int echo_pin) {
  */
 void handle_obstacle_avoidance() {
     double distance = read_ultrasonic(US4_TRIG_PIN, US4_ECHO_PIN);
+    std::cout << " | handle_obstacle_avoidance (US1): " << distance << " cm" << std::endl;
 
     if (distance < DISTANCE_MIN) {
         std::cout << " | WARNING: Obstacle detected at " << distance << " cm!" << std::endl;
