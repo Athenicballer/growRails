@@ -4,6 +4,9 @@
 #include <iomanip> // For setprecision
 #include <cmath>   // For M_PI, etc. if needed
 
+
+// PRE ROS
+
 // --- Global Variables ---
 // Handles for I2C communication
 int temp_i2c_handle = -1;
