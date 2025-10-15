@@ -1,9 +1,9 @@
 import os
-from glob import glob
 from setuptools import setup
+from glob import glob
 
 package_name = 'rpi_cpp_hardware'
-launch_files = glob(os.path.join('launch', '*.launch.py'))
+
 
 setup(
     name=package_name,
@@ -14,10 +14,10 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         
-        # --- CRITICAL SECTION: Explicitly installing launch files ---
-        # The file is in launch/rpi_system_launch.py, and it must be installed
-        # directly into share/rpi_cpp_hardware/
-        (os.path.join('share', package_name), launch_files),
+        # --- CRITICAL FIX: Using the fixed, more generic glob pattern ---
+        # This will match 'rpi_system_launch.py' as requested,
+        # assuming it is the only file ending in 'launch.py'.
+        (os.path.join('share', package_name), glob('launch/*launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
