@@ -1,1 +1,0 @@
-/usr/bin/arm-linux-gnueabihf-gcc -rdynamic CMakeFiles/pigs.dir/pigs.c.o CMakeFiles/pigs.dir/command.c.o -o pigs 
