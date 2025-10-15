@@ -1,13 +1,13 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64.hpp>
 
-// --- CRITICAL FIX: Ensure C linkage for the pigpio client library ---
-// This tells the C++ compiler to link these functions as C functions, 
-// resolving the 'not declared in this scope' error.
+// --- CRITICAL FIX: Ensure C linkage and use the client interface header ---
+// This tells the C++ compiler to link these functions as C functions,
+// resolving the linkage error for C functions used in C++ code.
 extern "C" {
 #include <pigpiod_if.h> 
 }
-// -------------------------------------------------------------------
+// -------------------------------------------------------------------------
 
 #include <chrono>
 #include <cstdlib>
@@ -24,7 +24,7 @@ public:
     SensorPublisher() : Node("sensor_publisher_node")
     {
         // 1. Initialize PiGPIO (Connect as a client)
-        // NULL for address and NULL for port means connect to localhost:8888
+        // Use the correct client function: gpioConnect
         pigpio_handle_ = gpioConnect(NULL, NULL);
         if (pigpio_handle_ < 0) {
             RCLCPP_ERROR(this->get_logger(), "PiGPIO connection failed with error code: %d. Ensure the 'pigpiod' daemon is running.", pigpio_handle_);
@@ -33,8 +33,8 @@ public:
         RCLCPP_INFO(this->get_logger(), "PiGPIO client connected successfully (Handle: %d) for sensor reading.", pigpio_handle_);
 
         // 2. Setup Sensor Pin
-        // Use the handle-based function to set the mode
-        gpiodSetMode(pigpio_handle_, SOIL_MOISTURE_PIN, PI_INPUT);
+        // Use the correct client function: gpioSetMode
+        gpioSetMode(pigpio_handle_, SOIL_MOISTURE_PIN, PI_INPUT);
 
         // 3. Create Publisher and Timer
         publisher_ = this->create_publisher<std_msgs::msg::Float64>("rpi_sensor_data", 10);
@@ -48,19 +48,19 @@ public:
     ~SensorPublisher()
     {
         RCLCPP_INFO(this->get_logger(), "Shutting down SensorPublisher. Cleaning up PiGPIO connection.");
-        // Use the handle-based terminate function
-        gpiodTerminate(pigpio_handle_); 
+        // Use the correct client function: gpioTerminate
+        gpioTerminate(pigpio_handle_); 
     }
 
 private:
     void publish_sensor_data()
     {
-        // Use the handle-based function to read the pin state
-        int digital_reading = gpiodRead(pigpio_handle_, SOIL_MOISTURE_PIN);
+        // Use the correct client function: gpioRead
+        // Reads the digital state (0 or 1) from the GPIO pin.
+        int digital_reading = gpioRead(pigpio_handle_, SOIL_MOISTURE_PIN);
         
-        // Simulating sensor data based on digital reading for demonstration.
-        // The digital reading is either 0 (HIGH/dry) or 1 (LOW/wet) for a typical digital sensor.
-        // The analog simulation creates a value between 500 and 1000.
+        // --- Simulated Analog Value (0.0 to 1000.0) ---
+        // This simulates a sensor that returns a higher value when dry (LOW) and lower value when wet (HIGH).
         double simulated_adc_value = 1000.0 - (digital_reading * 500.0) + (std::rand() % 50);
 
         auto message = std_msgs::msg::Float64();

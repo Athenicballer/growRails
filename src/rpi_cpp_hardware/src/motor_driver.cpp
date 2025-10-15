@@ -1,11 +1,12 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 
-// --- CRITICAL FIX: Ensure C linkage for the pigpio client library ---
+// --- CRITICAL FIX: Ensure C linkage and use the client interface header ---
+// This tells the C++ compiler to link these functions as C functions.
 extern "C" {
 #include <pigpiod_if.h> 
 }
-// -------------------------------------------------------------------
+// -------------------------------------------------------------------------
 
 #include <cmath>
 
@@ -36,13 +37,13 @@ void set_motor_speed(int pwm_pin, double speed) {
     // Convert speed (0.0 to 1.0) to PWM duty cycle (0 to SPEED_MAX)
     int duty_cycle = static_cast<int>(std::round(std::min(1.0, std::max(0.0, speed)) * SPEED_MAX));
 
-    // We must use the 'gpiod' functions now that we are using a client handle
+    // NOTE: Using gpio... functions with the handle, which is the correct client syntax
     if (pwm_pin == M1_PWM_PIN) {
         // M1 (Pin 18) uses Hardware PWM, duty cycle is 0 to 1,000,000
-        gpiodHardwarePWM(global_pigpio_handle, pwm_pin, PWM_FREQUENCY, duty_cycle * 1000000 / SPEED_MAX); 
+        gpioHardwarePWM(global_pigpio_handle, pwm_pin, PWM_FREQUENCY, duty_cycle * 1000000 / SPEED_MAX); 
     } else {
         // M2 (Pin 12) uses Software PWM, duty cycle is 0 to 255
-        gpiodPWM(global_pigpio_handle, pwm_pin, duty_cycle);
+        gpioPWM(global_pigpio_handle, pwm_pin, duty_cycle);
     }
 }
 
@@ -52,17 +53,17 @@ void set_motor_speed(int pwm_pin, double speed) {
  * @param forward true for one direction, false for reverse.
  */
 void set_motor_direction(int dir_pin, bool forward) {
-    // We must use the 'gpiod' functions now that we are using a client handle
+    // NOTE: Using gpio... functions with the handle, which is the correct client syntax
     int dir2_pin = (dir_pin == M1_DIR_PIN) ? M1_DIR2_PIN : M2_DIR2_PIN;
 
     if (forward) {
         // Forward: Primary Pin (IN1/IN3) = HIGH, Companion Pin (IN2/IN4) = LOW
-        gpiodWrite(global_pigpio_handle, dir_pin, PI_HIGH);
-        gpiodWrite(global_pigpio_handle, dir2_pin, PI_LOW);
+        gpioWrite(global_pigpio_handle, dir_pin, PI_HIGH);
+        gpioWrite(global_pigpio_handle, dir2_pin, PI_LOW);
     } else {
         // Reverse: Primary Pin (IN1/IN3) = LOW, Companion Pin (IN2/IN4) = HIGH
-        gpiodWrite(global_pigpio_handle, dir_pin, PI_LOW);
-        gpiodWrite(global_pigpio_handle, dir2_pin, PI_HIGH);
+        gpioWrite(global_pigpio_handle, dir_pin, PI_LOW);
+        gpioWrite(global_pigpio_handle, dir2_pin, PI_HIGH);
     }
 }
 
@@ -72,7 +73,7 @@ public:
     MotorDriver() : Node("motor_driver_node")
     {
         // 1. Initialize PiGPIO (Connect as a client to the running daemon)
-        // NULL for address and NULL for port means connect to localhost:8888
+        // gpioConnect is the correct function name for the client interface
         pigpio_handle_ = gpioConnect(NULL, NULL);
         if (pigpio_handle_ < 0) {
             RCLCPP_ERROR(this->get_logger(), "PiGPIO connection failed with error code: %d. Ensure the 'pigpiod' daemon is running.", pigpio_handle_);
@@ -99,8 +100,8 @@ public:
         RCLCPP_INFO(this->get_logger(), "Shutting down MotorDriver. Stopping motors and cleaning up GPIO.");
         set_motor_speed(M1_PWM_PIN, 0.0);
         set_motor_speed(M2_PWM_PIN, 0.0);
-        // Use the handle-based terminate function
-        gpiodTerminate(pigpio_handle_); 
+        // Use the correct handle-based terminate function
+        gpioTerminate(pigpio_handle_); 
     }
 
 private:
@@ -108,21 +109,21 @@ private:
 
     void setup_motor_gpios()
     {
-        // Use handle-based functions (gpiodSetMode, gpiodSetPWMfrequency, gpiodSetPWMrange)
+        // Use the correct handle-based functions (gpioSetMode, gpioSetPWMfrequency, gpioSetPWMrange)
 
         // M1 (Left) Setup
-        gpiodSetMode(pigpio_handle_, M1_PWM_PIN, PI_OUTPUT);
-        gpiodSetMode(pigpio_handle_, M1_DIR_PIN, PI_OUTPUT);
-        gpiodSetMode(pigpio_handle_, M1_DIR2_PIN, PI_OUTPUT);
+        gpioSetMode(pigpio_handle_, M1_PWM_PIN, PI_OUTPUT);
+        gpioSetMode(pigpio_handle_, M1_DIR_PIN, PI_OUTPUT);
+        gpioSetMode(pigpio_handle_, M1_DIR2_PIN, PI_OUTPUT);
 
         // M2 (Right) Setup
-        gpiodSetMode(pigpio_handle_, M2_PWM_PIN, PI_OUTPUT);
-        gpiodSetMode(pigpio_handle_, M2_DIR_PIN, PI_OUTPUT);
-        gpiodSetMode(pigpio_handle_, M2_DIR2_PIN, PI_OUTPUT);
+        gpioSetMode(pigpio_handle_, M2_PWM_PIN, PI_OUTPUT);
+        gpioSetMode(pigpio_handle_, M2_DIR_PIN, PI_OUTPUT);
+        gpioSetMode(pigpio_handle_, M2_DIR2_PIN, PI_OUTPUT);
         
         // M2 (Software PWM) range setup
-        gpiodSetPWMfrequency(pigpio_handle_, M2_PWM_PIN, PWM_FREQUENCY);
-        gpiodSetPWMrange(pigpio_handle_, M2_PWM_PIN, SPEED_MAX);
+        gpioSetPWMfrequency(pigpio_handle_, M2_PWM_PIN, PWM_FREQUENCY);
+        gpioSetPWMrange(pigpio_handle_, M2_PWM_PIN, SPEED_MAX);
 
         // Initial stop
         set_motor_speed(M1_PWM_PIN, 0.0);
