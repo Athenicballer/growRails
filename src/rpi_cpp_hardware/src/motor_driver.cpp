@@ -17,6 +17,12 @@
 #define SPEED_MAX      255.0 // Max duty cycle for PWM (0-255)
 #define PWM_FREQUENCY  500   // PWM Frequency in Hz
 
+// --- Global Variable for Connection Handle ---
+// This is necessary because the helper functions need the handle.
+// In a real application, these helpers would be methods, but this is the simplest fix.
+int global_pigpio_handle = -1; 
+
+
 /**
  * @brief Sets the speed of a motor by controlling the PWM duty cycle.
  * @param pwm_pin The GPIO pin connected to the L298N ENA/ENB.
@@ -60,11 +66,16 @@ public:
     MotorDriver() : Node("motor_driver_node")
     {
         // 1. Initialize PiGPIO
-        if (gpioInitialise() < 0) {
-            RCLCPP_ERROR(this->get_logger(), "PiGPIO initialization failed. Check daemon status.");
-            throw std::runtime_error("PiGPIO initialization failed.");
+        // NULL for address and NULL for port means connect to localhost:8888
+        pigpio_handle_ = gpioConnect(NULL, NULL);
+        if (pigpio_handle_ < 0) {
+            RCLCPP_ERROR(this->get_logger(), "PiGPIO connection failed with error code: %d. Ensure the 'pigpiod' daemon is running.", pigpio_handle_);
+            throw std::runtime_error("PiGPIO initialization failed: Could not connect to daemon.");
         }
-        RCLCPP_INFO(this->get_logger(), "PiGPIO initialized successfully for motor control.");
+        
+        // Set the global handle for helper functions
+        global_pigpio_handle = pigpio_handle_;
+        RCLCPP_INFO(this->get_logger(), "PiGPIO client connected successfully (Handle: %d).", pigpio_handle_);
 
         // 2. Setup Motor Pins
         setup_motor_gpios();

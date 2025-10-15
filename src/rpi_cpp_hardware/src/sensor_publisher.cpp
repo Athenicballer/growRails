@@ -100,11 +100,13 @@ public:
     SensorPublisher() : Node("sensor_publisher_node")
     {
         // 1. Initialize PiGPIO
-        if (gpioInitialise() < 0) {
-            RCLCPP_ERROR(this->get_logger(), "PiGPIO initialization failed. Check daemon status.");
-            throw std::runtime_error("PiGPIO initialization failed.");
+        // NULL for address and NULL for port means connect to localhost:8888
+        pigpio_handle_ = gpioConnect(NULL, NULL);
+        if (pigpio_handle_ < 0) {
+            RCLCPP_ERROR(this->get_logger(), "PiGPIO connection failed with error code: %d. Ensure the 'pigpiod' daemon is running.", pigpio_handle_);
+            throw std::runtime_error("PiGPIO initialization failed: Could not connect to daemon.");
         }
-        RCLCPP_INFO(this->get_logger(), "PiGPIO initialized successfully for sensor control.");
+        RCLCPP_INFO(this->get_logger(), "PiGPIO client connected successfully (Handle: %d) for sensor reading.", pigpio_handle_);
 
         // 2. Setup Pins and I2C
         setup_sensor_gpios_and_i2c();
