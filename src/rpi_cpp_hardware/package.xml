@@ -17,6 +17,13 @@
   <depend>controller_interface</depend>
   <depend>rclcpp_components</depend>
 
+  <!-- EXECUTION DEPENDENCIES (Required to run the nodes and launch file) -->
+  <exec_depend>ros2launch</exec_depend>
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+
+
   <!-- Test Dependencies -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
