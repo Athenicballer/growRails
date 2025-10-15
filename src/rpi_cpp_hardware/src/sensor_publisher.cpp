@@ -24,6 +24,7 @@
 // Global Handles
 int temp_i2c_handle = -1;
 int soil_i2c_handle = -1;
+int pigpio_handle_ = -1; 
 
 /**
  * @brief Reads the distance from an ultrasonic sensor using pulse duration.
