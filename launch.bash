@@ -10,4 +10,4 @@ colcon build --packages-select rpi_cpp_hardware || exit 1
 source install/setup.bash
 
 # Launch the node
-ros2 launch rpi_cpp_hardware rpi_cpp_hardware_launch.py
+ros2 launch rpi_cpp_hardware rpi_system_launch.py
