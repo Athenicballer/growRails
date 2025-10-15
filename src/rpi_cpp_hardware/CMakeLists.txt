@@ -12,32 +12,44 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-# --- CRITICAL: HARDCODED PIGPIO PATHS ---
-# Since apt failed and pigpio was installed manually, we set the paths directly
-include_directories(/usr/local/include)
-link_directories(/usr/local/lib)
+# --- Find the pigpio library ---
+# This looks for libpigpio.so in standard system paths, including /usr/local/lib
+find_library(PIGPIO_LIBRARIES pigpio)
 
-# Use the pigpio library name for linking (it will now look in /usr/local/lib)
-set(PIGPIO_LIBRARY "pigpio")
+if(NOT PIGPIO_LIBRARIES)
+  # Fallback for manual installs in /usr/local/
+  message(STATUS "pigpio library not found in standard paths. Assuming /usr/local/lib.")
+  include_directories(/usr/local/include)
+  link_directories(/usr/local/lib)
+  set(PIGPIO_LIBRARIES "-lpigpio") # Use -l flag for linker
+endif()
+
 
 # --- C++ Node Definitions ---
+# The names used here MUST match the 'executable' argument in the launch file.
 
-# 1. Sensor Publisher Node
-add_executable(sensor_publisher_node src/sensor_publisher.cpp)
-ament_target_dependencies(sensor_publisher_node rclcpp std_msgs)
-# Link the executable to the pigpio library
-target_link_libraries(sensor_publisher_node ${PIGPIO_LIBRARY})
-
-# 2. Motor Driver Node
+# 1. Motor Driver Node
 add_executable(motor_driver_node src/motor_driver.cpp)
 ament_target_dependencies(motor_driver_node rclcpp geometry_msgs)
-# Link the executable to the pigpio library
-target_link_libraries(motor_driver_node ${PIGPIO_LIBRARY})
+target_link_libraries(motor_driver_node ${PIGPIO_LIBRARIES})
+
+# 2. Sensor Publisher Node
+add_executable(sensor_publisher_node src/sensor_publisher.cpp)
+ament_target_dependencies(sensor_publisher_node rclcpp std_msgs)
+target_link_libraries(sensor_publisher_node ${PIGPIO_LIBRARIES})
+
+# 3. Main Control Logic Node (The one that was failing to launch)
+# The output executable will be named 'main_control_logic_node'
+add_executable(main_control_logic_node src/main_control_logic.cpp)
+ament_target_dependencies(main_control_logic_node rclcpp)
+target_link_libraries(main_control_logic_node ${PIGPIO_LIBRARIES})
+
 
 # Install targets
 install(TARGETS
-  sensor_publisher_node
   motor_driver_node
+  sensor_publisher_node
+  main_control_logic_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
