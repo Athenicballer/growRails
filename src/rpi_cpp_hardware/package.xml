@@ -3,25 +3,29 @@
 <package format="3">
   <name>rpi_cpp_hardware</name>
   <version>0.0.0</version>
-  <description>ROS 2 C++ nodes for Raspberry Pi 4 motor control (pigpio) and integrated sensor reading (ultrasonic/I2C).</description>
-  <maintainer email="ros_user@todo.todo">ros_user</maintainer>
-  <license>Apache-2.0</license>
+  <description>ROS 2 hardware package for RPi robot control.</description>
+  <maintainer email="user@raspberrypi.local">grower</maintainer>
+  <license>TODO: License declaration</license>
 
-  <!-- Dependencies for C++ compilation and execution -->
-  <build_depend>rclcpp</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>geometry_msgs</build_depend>
+  <!-- CRITICAL: Changed from ament_python to ament_cmake -->
+  <buildtool_depend>ament_cmake</buildtool_depend> 
 
-  <exec_depend>rclcpp</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  
-  <!-- NOTE: This package relies on the external system library 'pigpio' for hardware interaction. -->
+  <!-- C++ Dependencies -->
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>hardware_interface</depend>
+  <depend>controller_interface</depend>
+  <depend>rclcpp_components</depend>
 
+  <!-- Test Dependencies -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
+  <!-- Python Launch Dependency (Still needed to run the launch file) -->
+  <exec_depend>ros2launch</exec_depend> 
+  
   <export>
+    <!-- CRITICAL: Export as ament_cmake -->
     <build_type>ament_cmake</build_type>
   </export>
 </package>
