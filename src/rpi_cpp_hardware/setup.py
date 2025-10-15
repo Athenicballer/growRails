@@ -3,26 +3,21 @@ from glob import glob
 from setuptools import setup
 
 package_name = 'rpi_cpp_hardware'
+launch_files = glob(os.path.join('launch', '*.launch.py'))
 
 setup(
     name=package_name,
     version='0.0.0',
-    # We leave packages=[] empty because this package installs C++ executables
     packages=[],
     data_files=[
-        # Install resources (package.xml and resource index)
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         
-        # --- CRITICAL SECTION: Installing the Launch File ---
-        # Install the Python launch file directly into the share/package_name directory.
-        # This is the correct location for Python launch files to be found by `ros2 launch`.
-        (os.path.join('share', package_name), glob(os.path.join('launch', '*.launch.py'))),
-        
-        # This line was unnecessary and has been removed:
-        # (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*.launch.py'))),
-
+        # --- CRITICAL SECTION: Explicitly installing launch files ---
+        # The file is in launch/rpi_system_launch.py, and it must be installed
+        # directly into share/rpi_cpp_hardware/
+        (os.path.join('share', package_name), launch_files),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
