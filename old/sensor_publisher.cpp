@@ -25,7 +25,7 @@ using namespace std::chrono_literals;
 // System Constants
 #define DISTANCE_MIN    10.0 // cm
 // --- End Pin Definitions ---
-int pi_handle_ = -1
+
 
 class SensorPublisher : public rclcpp::Node
 {
@@ -43,11 +43,10 @@ public:
         
         // --- 1. PiGPIO Initialization/Connection (Client Mode) ---
         // Setting up the client to communicate with the running pigpiod daemon
-        // int pi_handle_ = gpioCfgStart(0, 0); 
-        
-        pi_handle_ = pigpio_start(NULL, NULL); // Connect to daemon on localhost
-        if (pi_handle_ < 0) {
-            RCLCPP_ERROR(this->get_logger(), "PiGPIO client connection failed (Error: %d). Ensure 'pigpiod' daemon is running.", pi_handle_);
+        // int result = gpioCfgStart(0, 0); 
+        int result = pigpio_start(NULL, NULL); // Connect to daemon on localhost
+        if (result < 0) {
+            RCLCPP_ERROR(this->get_logger(), "PiGPIO client connection failed (Error: %d). Ensure 'pigpiod' daemon is running.", result);
             // Fallback: Try direct initialization (requires sudo/permissions)
             // This is unlikely to fix it if pigpiod is running, but good practice.
             if (gpioInitialise() < 0) {
@@ -57,7 +56,7 @@ public:
         }
         RCLCPP_INFO(this->get_logger(), "PiGPIO client connected successfully.");
 
-        setup_gpios(pi_handle_); // Initialize all pins and I2C connections
+        setup_gpios(); // Initialize all pins and I2C connections
 
         // --- 2. ROS 2 Setup ---
         // Create a publisher for the custom sensor data message
@@ -94,21 +93,21 @@ private:
     double read_ultrasonic(int trig_pin, int echo_pin) 
     {
         // 1. Trigger the sensor
-        gpio_write(pi_handle_,trig_pin, PI_HIGH);
-        gpio_delay(pi_handle_,10); // 10 microsecond pulse
-        gpio_write(pi_handle_,trig_pin, PI_LOW);
+        gpioWrite(trig_pin, PI_HIGH);
+        gpioDelay(10); // 10 microsecond pulse
+        gpioWrite(trig_pin, PI_LOW);
 
         long start_time = gpioTick();
         long end_time = start_time;
         long timeout = 50000; // 50ms timeout for max distance ~8m
 
         // 2. Wait for the echo start (HIGH)
-        while (gpio_read(pi_handle_,echo_pin) == PI_LOW && (gpioTick() - start_time) < timeout) {
+        while (gpioRead(echo_pin) == PI_LOW && (gpioTick() - start_time) < timeout) {
             start_time = gpioTick();
         }
 
         // 3. Wait for the echo end (LOW)
-        while (gpio_read(pi_handle_,echo_pin) == PI_HIGH && (gpioTick() - start_time) < timeout) {
+        while (gpioRead(echo_pin) == PI_HIGH && (gpioTick() - start_time) < timeout) {
             end_time = gpioTick();
         }
 
@@ -164,22 +163,22 @@ private:
 
         // --- I2C Setup ---
         // Note: pigpiod_if is needed here for i2cOpen, as the client interface handles it.
-        temp_i2c_handle_ = i2c_open(pi_handle_,I2C_BUS, TEMP_I2C_ADDRESS, 0);
-        soil_i2c_handle_ = i2c_open(pi_handle_,I2C_BUS, SOIL_I2C_ADDRESS, 0);
+        temp_i2c_handle_ = i2cOpen(I2C_BUS, TEMP_I2C_ADDRESS, 0);
+        soil_i2c_handle_ = i2cOpen(I2C_BUS, SOIL_I2C_ADDRESS, 0);
 
         if (temp_i2c_handle_ < 0) RCLCPP_WARN(this->get_logger(), " I2C Temp Sensor failed to open.");
         if (soil_i2c_handle_ < 0) RCLCPP_WARN(this->get_logger(), " I2C Soil Sensor failed to open.");
 
         // --- Ultrasonic Sensor Setup ---
         // S1
-        set_mode(pi_handle_,US1_TRIG_PIN, PI_OUTPUT);
-        set_mode(pi_handle_,US1_ECHO_PIN, PI_INPUT);
-        gpio_write(pi_handle_,US1_TRIG_PIN, 0); 
+        gpioSetMode(US1_TRIG_PIN, PI_OUTPUT);
+        gpioSetMode(US1_ECHO_PIN, PI_INPUT);
+        gpioWrite(US1_TRIG_PIN, 0); 
         
         // S4
-        set_mode(pi_handle_,US4_TRIG_PIN, PI_OUTPUT);
-        set_mode(pi_handle_,US4_ECHO_PIN, PI_INPUT);
-        gpio_write(pi_handle_,US4_TRIG_PIN, 0);
+        gpioSetMode(US4_TRIG_PIN, PI_OUTPUT);
+        gpioSetMode(US4_ECHO_PIN, PI_INPUT);
+        gpioWrite(US4_TRIG_PIN, 0);
 
         usleep(1000000); // Wait for pins to settle (1 second)
         RCLCPP_INFO(this->get_logger(), "GPIOs and I2C handles initialized.");
@@ -192,14 +191,14 @@ private:
         if (soil_i2c_handle_ >= 0) i2cClose(soil_i2c_handle_);
 
         // Set used GPIOs back to input for safety
-        set_mode(pi_handle_,US1_TRIG_PIN, PI_INPUT);
-        set_mode(pi_handle_,US1_ECHO_PIN, PI_INPUT);
-        set_mode(pi_handle_,US4_TRIG_PIN, PI_INPUT);
-        set_mode(pi_handle_,US4_ECHO_PIN, PI_INPUT);
+        gpioSetMode(US1_TRIG_PIN, PI_INPUT);
+        gpioSetMode(US1_ECHO_PIN, PI_INPUT);
+        gpioSetMode(US4_TRIG_PIN, PI_INPUT);
+        gpioSetMode(US4_ECHO_PIN, PI_INPUT);
 
         // Terminate pigpio (only if initialized directly, but safe to call)
         // If connected as client, this terminates the client connection.
-        pigpio_stop(pi_handle_);
+        gpioTerminate();
     }
 
 
