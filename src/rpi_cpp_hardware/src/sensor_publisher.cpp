@@ -25,7 +25,7 @@ using namespace std::chrono_literals;
 // System Constants
 #define DISTANCE_MIN    10.0 // cm
 // --- End Pin Definitions ---
-int pi_handle_ = -1
+int pi_handle_ = -1;
 
 class SensorPublisher : public rclcpp::Node
 {
