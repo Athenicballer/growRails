@@ -40,7 +40,6 @@ void sleeper(int miliseconsd){
     // Print a message after sleeping
     std::cout << "Finished sleeping. Continuing work." << std::endl;
 
-    return 0;
 }
 
 
