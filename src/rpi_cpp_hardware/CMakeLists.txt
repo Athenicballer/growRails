@@ -15,7 +15,7 @@ find_package(rosidl_default_generators REQUIRED)
 # --- Custom Message Configuration Start ---
 set(
   MSG_FILES
-  "msg/rpi_sensor_data.msg" # <-- THIS LINE IS CRITICAL: Ensures the correct path is used
+  "msg/rpiSensorData.msg" # <-- THIS LINE IS CRITICAL: Ensures the correct path is used
 )
 
 # Generates the C++ (and other language) interfaces from the .msg file
