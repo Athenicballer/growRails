@@ -17,7 +17,7 @@ find_package(rclcpp_components REQUIRED)
 # Find pigpio library for GPIO access
 # Find pigpio library for GPIO access (installed in /usr/local/lib)
 find_library(PIGPIO_LIBRARY pigpio PATHS /usr/local/lib REQUIRED)
-# find_library(PIGPIO_IF_LIBRARY pigpio_if2 REQUIRED)
+find_library(PIGPIOD_IF2_LIBRARY pigpiod_if2 PATHS /usr/local/lib REQUIRED)
 
 # Print the current working directory (where this CMakeLists.txt is located)
 message("Current Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
@@ -82,9 +82,10 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 #   ${PIGPIO_IF_LIBRARY}
 # )
 
-target_link_libraries(rpi_publisher 
+target_link_libraries(rpi_publisher
   "${cpp_typesupport_target}"
   ${PIGPIO_LIBRARY}
+  ${PIGPIOD_IF2_LIBRARY}
   pthread
   rt
 )
