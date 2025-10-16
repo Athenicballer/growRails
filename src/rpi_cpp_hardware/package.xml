@@ -9,6 +9,7 @@
 
   <!-- BUILD TOOL DEPENDENCIES -->
   <buildtool_depend>ament_cmake</buildtool_depend> 
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
   <!--
   CORE DEPENDENCIES: Use <depend> for packages needed by both C++ compiler (build) and runtime (exec).
