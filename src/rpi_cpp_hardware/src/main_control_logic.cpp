@@ -1,103 +1,101 @@
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/float64.hpp>
-#include <std_msgs/msg/int32.hpp>
-#include <geometry_msgs/msg/twist.hpp>
-#include <map>
+#include "rclcpp/rclcpp.hpp"
+#include "rpi_cpp_hardware/msg/rpi_sensor_data.hpp"
+#include "std_msgs/msg/string.hpp"
+#include <iomanip>
 
-// System Constants
-#define DISTANCE_MIN_CM 15.0 // Obstacle detection threshold (15 cm)
+using namespace std::chrono_literals;
+
+// System Constants (copied from original script for context)
+#define DISTANCE_MIN    10.0 // cm
 #define SOIL_WET_LEVEL  500  // Example analog reading threshold
 
-class ControlLogic : public rclcpp::Node
+class MainControlLogic : public rclcpp::Node
 {
 public:
-    ControlLogic() : Node("main_control_node")
+    MainControlLogic()
+    : Node("main_control_logic")
     {
-        // Initialize state variables
-        last_distances_["us1"] = 999.0;
-        last_distances_["us4"] = 999.0;
-        last_soil_moisture_ = 1000;
+        RCLCPP_INFO(this->get_logger(), "Main Control Logic node started.");
 
-        // 1. Create Subscribers
-        sub_us1_ = this->create_subscription<std_msgs::msg::Float64>(
-            "distance_us1", 10, std::bind(&ControlLogic::us1_callback, this, std::placeholders::_1));
-        sub_us4_ = this->create_subscription<std_msgs::msg::Float64>(
-            "distance_us4", 10, std::bind(&ControlLogic::us4_callback, this, std::placeholders::_1));
-        sub_soil_ = this->create_subscription<std_msgs::msg::Int32>(
-            "soil_moisture", 10, std::bind(&ControlLogic::soil_callback, this, std::placeholders::_1));
+        // 1. Create a Subscriber for the Sensor Data
+        // The topic is "rpi_sensor_data" and uses the generated RpiSensorData message
+        sensor_subscription_ = this->create_subscription<rpi_cpp_hardware::msg::RpiSensorData>(
+            "rpi_sensor_data", 
+            10, 
+            std::bind(&MainControlLogic::sensor_data_callback, this, std::placeholders::_1)
+        );
 
-        // 2. Create Publisher for motor commands
-        cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
-
-        // 3. Create Decision Timer (runs the core application logic)
-        decision_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(500), 
-            std::bind(&ControlLogic::decision_loop, this));
-
-        RCLCPP_INFO(this->get_logger(), "ControlLogic ready, monitoring sensors and publishing to /cmd_vel.");
+        // 2. Create a Publisher for High-Level Robot Commands (e.g., to control motors)
+        command_publisher_ = this->create_publisher<std_msgs::msg::String>("robot_command", 10);
+        
+        // Timer for publishing simple "keep moving" command if no issues
+        publish_timer_ = this->create_wall_timer(
+            1s, std::bind(&MainControlLogic::publish_default_command, this));
     }
 
 private:
-    // --- Sensor Callbacks (Update State) ---
-    void us1_callback(const std_msgs::msg::Float64::SharedPtr msg) { last_distances_["us1"] = msg->data; }
-    void us4_callback(const std_msgs::msg::Float64::SharedPtr msg) { last_distances_["us4"] = msg->data; }
-    void soil_callback(const std_msgs::msg::Int32::SharedPtr msg) { last_soil_moisture_ = msg->data; }
+    rclcpp::Subscription<rpi_cpp_hardware::msg::RpiSensorData>::SharedPtr sensor_subscription_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr command_publisher_;
+    rclcpp::TimerBase::SharedPtr publish_timer_;
 
-    // --- Core Decision Logic (Runs on Timer) ---
-    void decision_loop()
+    void sensor_data_callback(const rpi_cpp_hardware::msg::RpiSensorData::SharedPtr msg)
     {
-        auto twist_msg = geometry_msgs::msg::Twist();
-        bool obstacle_detected = false;
+        // Get the relevant data from the incoming ROS message
+        double front_distance = msg->us1_distance_cm;
+        double rear_distance = msg->us4_distance_cm;
+        int soil_moisture = msg->soil_moisture_adc;
+        double air_temp = msg->air_temperature_celsius;
 
-        // 1. Check Front Obstacle (US1)
-        if (last_distances_["us1"] < DISTANCE_MIN_CM && last_distances_["us1"] > 0) {
-            // Obstacle in front: Stop
-            RCLCPP_WARN(this->get_logger(), "FRONT OBSTACLE at %.1f cm! STOPPING.", last_distances_["us1"]);
-            twist_msg.linear.x = 0.0;
-            twist_msg.angular.z = 0.0;
-            obstacle_detected = true;
+        RCLCPP_INFO(this->get_logger(), "--- Received Status Report (Seq: %d) ---", msg->header.stamp.sec);
+        RCLCPP_INFO(this->get_logger(), " | Front Distance (US1): %.2f cm", front_distance);
+        RCLCPP_INFO(this->get_logger(), " | Rear Distance (US4): %.2f cm", rear_distance);
+        RCLCPP_INFO(this->get_logger(), " | Soil Moisture: %d", soil_moisture);
+        RCLCPP_INFO(this->get_logger(), " | Air Temperature: %.2f C", air_temp);
+
+        // --- Decision Logic: Obstacle Avoidance ---
+        if (front_distance < DISTANCE_MIN && front_distance > 0) {
+            RCLCPP_WARN(this->get_logger(), " | ACTION: Front obstacle detected! Sending STOP and REVERSE command.");
+            publish_command("REVERSE");
+            return; // Stop processing and wait for next sensor read after command
         }
 
-        // 2. Check Rear Obstacle (US4) - Important for reversing logic
-        if (last_distances_["us4"] < DISTANCE_MIN_CM && last_distances_["us4"] > 0) {
-            RCLCPP_INFO(this->get_logger(), "REAR OBSTACLE at %.1f cm. Reversing restricted.", last_distances_["us4"]);
-            // In a more complex system, this would prevent a reverse command.
+        if (rear_distance < DISTANCE_MIN && rear_distance > 0) {
+            RCLCPP_WARN(this->get_logger(), " | WARNING: Object close behind! Reversing motion restricted.");
+            // We could send a command here to prevent reverse motion if the robot was trying to stop/reverse
         }
 
-        // 3. Check Soil Moisture
-        if (last_soil_moisture_ < SOIL_WET_LEVEL) {
-            RCLCPP_INFO(this->get_logger(), "ACTION: Soil is dry (%d). Watering needed or moving to recharge.", last_soil_moisture_);
+        // --- Decision Logic: Soil Check ---
+        if (soil_moisture < SOIL_WET_LEVEL) {
+            RCLCPP_INFO(this->get_logger(), " | ACTION: Soil is dry. Watering needed. Pausing movement.");
+            publish_command("WATER");
         } else {
-            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "STATUS: Soil moisture OK (%d).", last_soil_moisture_);
+            RCLCPP_INFO(this->get_logger(), " | STATUS: Path clear and moisture OK.");
         }
-
-        // 4. Default Motion (If no obstacle)
-        if (!obstacle_detected) {
-            // Default: Move forward at a slow speed
-            twist_msg.linear.x = 0.3; // 30% speed
-            twist_msg.angular.z = 0.0;
-        }
-
-        // Publish the determined command
-        cmd_vel_pub_->publish(twist_msg);
     }
 
-    // State
-    std::map<std::string, double> last_distances_;
-    int last_soil_moisture_;
+    // Publishes a simple string command for demonstration
+    void publish_command(const std::string& command)
+    {
+        auto cmd_msg = std_msgs::msg::String();
+        cmd_msg.data = command;
+        command_publisher_->publish(cmd_msg);
+    }
+    
+    // Default action to keep the robot moving if no immediate issues
+    void publish_default_command()
+    {
+        // If we were commanded to reverse or water recently, we would delay this.
+        // For simplicity, we just keep sending the forward command.
+        // A more complex node would manage state (moving, stopped, reversing, watering).
+        publish_command("FORWARD");
+    }
 
-    // ROS 2 Members
-    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_us1_;
-    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_us4_;
-    rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_soil_;
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
-    rclcpp::TimerBase::SharedPtr decision_timer_;
 };
 
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<ControlLogic>());
+    rclcpp::spin(std::make_shared<MainControlLogic>());
     rclcpp::shutdown();
     return 0;
 }
