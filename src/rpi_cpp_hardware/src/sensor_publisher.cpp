@@ -175,7 +175,7 @@ private:
     }
 
 
-    void setup_gpios() 
+    void setup_gpios(int pi_handle_) 
     {
         RCLCPP_INFO(this->get_logger(), "Setting up GPIOs and I2C connections...");
 
