@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 # REQUIRED for custom message generation
 find_package(rosidl_default_generators REQUIRED) 
 find_package(hardware_interface REQUIRED)
@@ -83,8 +84,7 @@ install(TARGETS
 
 # --- Motor Driver Executable ---
 add_executable(motor_driver src/motor_driver.cpp)
-ament_target_dependencies(motor_driver rclcpp)
-
+ament_target_dependencies(motor_driver rclcpp geometry_msgs)
 target_link_libraries(motor_driver
   ${PIGPIO_LIBRARY}
   ${PIGPIOD_IF2_LIBRARY}
