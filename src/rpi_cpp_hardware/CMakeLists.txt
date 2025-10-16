@@ -16,7 +16,7 @@ find_package(rclcpp_components REQUIRED)
 
 # Find pigpio library for GPIO access
 find_library(PIGPIO_LIBRARY pigpio REQUIRED)
-find_library(PIGPIO_IF_LIBRARY pigpio_if2 REQUIRED)
+# find_library(PIGPIO_IF_LIBRARY pigpio_if2 REQUIRED)
 
 # Print the current working directory (where this CMakeLists.txt is located)
 message("Current Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
