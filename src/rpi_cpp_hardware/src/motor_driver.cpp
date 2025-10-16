@@ -79,7 +79,9 @@ public:
     {
         // 1. Initialize PiGPIO using direct access (gpioInitialise)
         // This is necessary when not using the pigpio client interface.
-        pigpio_handle_ = gpioInitialise();
+        // pigpio_handle_ = gpioInitialise();
+        pigpio_handle_ = pigpio_start(NULL, NULL);
+
 
         if (pigpio_handle_ < 0) {
             RCLCPP_ERROR(this->get_logger(), "PiGPIO direct initialization failed with error code: %d. Ensure the 'pigpiod' daemon is running or required libraries are available.", pigpio_handle_);
