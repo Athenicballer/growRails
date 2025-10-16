@@ -76,10 +76,17 @@ ament_target_dependencies(rpi_publisher rclcpp std_msgs)
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
+# target_link_libraries(rpi_publisher 
+#   "${cpp_typesupport_target}"
+#   ${PIGPIO_LIBRARY}
+#   ${PIGPIO_IF_LIBRARY}
+# )
+
 target_link_libraries(rpi_publisher 
   "${cpp_typesupport_target}"
   ${PIGPIO_LIBRARY}
-  ${PIGPIO_IF_LIBRARY}
+  pthread
+  rt
 )
 
 install(TARGETS
