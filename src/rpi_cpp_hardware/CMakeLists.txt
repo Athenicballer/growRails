@@ -26,7 +26,7 @@ message("Current Binary Directory: ${CMAKE_CURRENT_BINARY_DIR}")
 # --- Custom Message Configuration Start ---
 set(
   MSG_FILES
-  "${CMAKE_CURRENT_SOURCE_DIR}:msg/RpiSensorData.msg" # <-- THIS LINE IS CRITICAL: Ensures the correct path is used
+  "${CMAKE_CURRENT_SOURCE_DIR}:msg/rpiSensorData.msg" # <-- THIS LINE IS CRITICAL: Ensures the correct path is used
 )
 
 # Generates the C++ (and other language) interfaces from the .msg file
