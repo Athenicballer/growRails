@@ -119,7 +119,7 @@ public:
             set_motor_speed(M2_PWM_PIN, 0.0);
             // Terminate the local PiGPIO library
             // gpioTerminate(); 
-            pigpio_stop(pi_handle_)
+            pigpio_stop(pi_handle_);
         }
     }
 
