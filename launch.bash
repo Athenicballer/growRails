@@ -7,6 +7,10 @@ set -e
 echo "--- Sourcing ROS 2 environment (Jazzy) ---"
 source /opt/ros/jazzy/setup.bash
 
+mv ~/source/grower/growRails/src/rpi_cpp_hardware/msg/rpiSensorData.msg \
+   ~/source/grower/growRails/src/rpi_cpp_hardware/msg/RpiSensorData.msg
+
+
 # --- 2. BUILD THE PACKAGE ---
 # Compiles the C++ nodes and installs the launch file
 echo "--- Building rpi_cpp_hardware package ---"
