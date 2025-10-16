@@ -77,7 +77,9 @@ public:
     {
         // 1. Initialize PiGPIO (Connect as a client to the running daemon)
         // FIX: gpioConnect was the correct name, but was previously missing. Should now work.
-        pigpio_handle_ = gpiodConnect(NULL, NULL);
+        // pigpio_handle_ = gpiodConnect(NULL, NULL);
+        pigpio_handle_ = pigpio_start(NULL, NULL);
+
         if (pigpio_handle_ < 0) {
             RCLCPP_ERROR(this->get_logger(), "PiGPIO connection failed with error code: %d. Ensure the 'pigpiod' daemon is running.", pigpio_handle_);
             // Do not throw an error here, the application can continue (though without GPIO functionality)
