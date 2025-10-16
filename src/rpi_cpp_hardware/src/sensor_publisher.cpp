@@ -3,6 +3,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <pigpio.h>
+#include <pigpiod_if2.h>
 #include <iomanip>
 #include <cmath> 
 #include <chrono>
