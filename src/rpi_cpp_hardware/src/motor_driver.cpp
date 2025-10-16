@@ -2,15 +2,16 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <thread>   // Required for std::this_thread::sleep_for
 #include <chrono>   // Required for std::chrono::seconds
+#include <iomanip>
+#include <cmath>
 
 // Include the standard PiGPIO header for direct library access
 // extern "C" {
 //     #include <pigpio.h> 
 // }
-extern "C" {
-    #include <pigpiod_if.h> 
-}
-#include <cmath>
+// extern "C" {
+//     #include <pigpiod_if.h> 
+// }
 
 // --- Pin Definitions (BCM Numbering) ---
 #define M1_PWM_PIN      18 
@@ -23,6 +24,8 @@ extern "C" {
 // System Constants
 #define SPEED_MAX       255.0 // Max duty cycle for PWM (0-255)
 #define PWM_FREQUENCY   500   // PWM Frequency in Hz
+
+int pi_handle_ = -1;
 
 // NOTE: global_pigpio_handle has been removed.
 
@@ -58,20 +61,20 @@ void set_motor_speed(int pwm_pin, double speed) {
  */
 void set_motor_direction(int dir_pin, bool forward) {
     // Check pigpio initialization status
-    if (gpioInitialise() < 0) return;
+    if (pi_handle_ < 0) return;
     
     int dir2_pin = (dir_pin == M1_DIR_PIN) ? M1_DIR2_PIN : M2_DIR2_PIN;
 
     if (forward) {
         // Forward: Primary Pin (IN1/IN3) = HIGH, Companion Pin (IN2/IN4) = LOW
         // NOTE: No handle argument passed.
-        gpioWrite(dir_pin, PI_HIGH);
-        gpioWrite(dir2_pin, PI_LOW);
+        gpio_write(pi_handle_, dir_pin, PI_HIGH);
+        gpio_write(pi_handle_, dir2_pin, PI_LOW);
     } else {
         // Reverse: Primary Pin (IN1/IN3) = LOW, Companion Pin (IN2/IN4) = HIGH
         // NOTE: No handle argument passed.
-        gpioWrite(dir_pin, PI_LOW);
-        gpioWrite(dir2_pin, PI_HIGH);
+        gpio_write(pi_handle_, dir_pin, PI_LOW);
+        gpio_write(pi_handle_, dir2_pin, PI_HIGH);
     }
 }
 
@@ -83,10 +86,10 @@ public:
         // 1. Initialize PiGPIO using direct access (gpioInitialise)
         // This is necessary when not using the pigpio client interface.
         // pigpio_handle_ = gpioInitialise();
-        pigpio_handle_ = pigpio_start(NULL, NULL);
+        pi_handle_ = pigpio_start(NULL, NULL);
 
 
-        if (pigpio_handle_ < 0) {
+        if (pi_handle_ < 0) {
             RCLCPP_ERROR(this->get_logger(), "PiGPIO direct initialization failed with error code: %d. Ensure the 'pigpiod' daemon is running or required libraries are available.", pigpio_handle_);
         } else {
             RCLCPP_INFO(this->get_logger(), "PiGPIO library initialized successfully (Version: %d).", pigpio_handle_);
@@ -109,11 +112,12 @@ public:
     ~MotorDriver()
     {
         RCLCPP_INFO(this->get_logger(), "Shutting down MotorDriver. Stopping motors and cleaning up GPIO.");
-        if (pigpio_handle_ >= 0) {
+        if (pi_handle_ >= 0) {
             set_motor_speed(M1_PWM_PIN, 0.0);
             set_motor_speed(M2_PWM_PIN, 0.0);
             // Terminate the local PiGPIO library
-            gpioTerminate(); 
+            // gpioTerminate(); 
+            pigpio_stop(pi_handle_)
         }
     }
 
@@ -126,19 +130,19 @@ private:
         // All direct PiGPIO functions called without a handle argument.
 
         // M1 (Left) Setup
-        gpioSetMode(M1_PWM_PIN, PI_OUTPUT);
-        gpioSetMode(M1_DIR_PIN, PI_OUTPUT);
-        gpioSetMode(M1_DIR2_PIN, PI_OUTPUT);
+        set_mode(pi_handle_, M1_PWM_PIN, PI_OUTPUT);
+        set_mode(pi_handle_, M1_DIR_PIN, PI_OUTPUT);
+        set_mode(pi_handle_, M1_DIR2_PIN, PI_OUTPUT);
 
         // M2 (Right) Setup
-        gpioSetMode(M2_PWM_PIN, PI_OUTPUT);
-        gpioSetMode(M2_DIR_PIN, PI_OUTPUT);
-        gpioSetMode(M2_DIR2_PIN, PI_OUTPUT);
+        set_mode(pi_handle_, M2_PWM_PIN, PI_OUTPUT);
+        set_mode(pi_handle_, M2_DIR_PIN, PI_OUTPUT);
+        set_mode(pi_handle_, M2_DIR2_PIN, PI_OUTPUT);
         
         // M2 (Software PWM) range setup
         // NOTE: No handle argument passed.
-        gpioSetPWMfrequency(M2_PWM_PIN, PWM_FREQUENCY);
-        gpioSetPWMrange(M2_PWM_PIN, SPEED_MAX);
+        set_PWM_frequency(pi_handle_, M2_PWM_PIN, PWM_FREQUENCY);
+        set_PWM_range(pi_handle_, M2_PWM_PIN, SPEED_MAX);
 
         // Initial stop
         set_motor_speed(M1_PWM_PIN, 0.0);
@@ -148,7 +152,7 @@ private:
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
         // Only attempt motor control if PiGPIO initialization was successful
-        if (pigpio_handle_ < 0) return;
+        if (pi_handle_ < 0) return;
 
         double linear_x = msg->linear.x;
         double angular_z = msg->angular.z;
