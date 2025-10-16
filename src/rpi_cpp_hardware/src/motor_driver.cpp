@@ -37,12 +37,12 @@ void set_motor_speed(int pwm_pin, double speed) {
         // FIX: Using gpioHardwarePWM as suggested by compiler
         // gpioHardwarePWM(handle, gpio, PWMfreq, PWMduty) - Takes 4 arguments
         // The duty cycle is in the range 0 to 1,000,000 (1 million).
-        gpioHardwarePWM(global_pigpio_handle, pwm_pin, PWM_FREQUENCY, duty_cycle * 1000000 / SPEED_MAX); 
+        gpioHardwarePWM(pwm_pin, PWM_FREQUENCY, duty_cycle * 1000000 / SPEED_MAX); 
     } else {
         // FIX: Using gpioPWM as suggested by compiler
         // gpioPWM(handle, user_gpio, dutycycle) - Takes 3 arguments
         // Duty cycle uses the range set by gpioSetPWMrange (set to SPEED_MAX, which is 255)
-        gpioPWM(global_pigpio_handle, pwm_pin, duty_cycle);
+        gpioPWM(pwm_pin, duty_cycle);
     }
 }
 
@@ -60,13 +60,13 @@ void set_motor_direction(int dir_pin, bool forward) {
     if (forward) {
         // Forward: Primary Pin (IN1/IN3) = HIGH, Companion Pin (IN2/IN4) = LOW
         // FIX: Using gpioWrite as suggested by compiler
-        gpioWrite(global_pigpio_handle, dir_pin, PI_HIGH);
-        gpioWrite(global_pigpio_handle, dir2_pin, PI_LOW);
+        gpioWrite(dir_pin, PI_HIGH);
+        gpioWrite(dir2_pin, PI_LOW);
     } else {
         // Reverse: Primary Pin (IN1/IN3) = LOW, Companion Pin (IN2/IN4) = HIGH
         // FIX: Using gpioWrite as suggested by compiler
-        gpioWrite(global_pigpio_handle, dir_pin, PI_LOW);
-        gpioWrite(global_pigpio_handle, dir2_pin, PI_HIGH);
+        gpioWrite(dir_pin, PI_LOW);
+        gpioWrite(dir2_pin, PI_HIGH);
     }
 }
 
@@ -77,7 +77,7 @@ public:
     {
         // 1. Initialize PiGPIO (Connect as a client to the running daemon)
         // FIX: gpioConnect was the correct name, but was previously missing. Should now work.
-        pigpio_handle_ = gpioConnect(NULL, NULL);
+        pigpio_handle_ = gpiodConnect(NULL, NULL);
         if (pigpio_handle_ < 0) {
             RCLCPP_ERROR(this->get_logger(), "PiGPIO connection failed with error code: %d. Ensure the 'pigpiod' daemon is running.", pigpio_handle_);
             // Do not throw an error here, the application can continue (though without GPIO functionality)
@@ -104,7 +104,7 @@ public:
             set_motor_speed(M1_PWM_PIN, 0.0);
             set_motor_speed(M2_PWM_PIN, 0.0);
             // FIX: Using the handle-taking version, gpioTerminate(handle), for client disconnect.
-            gpioTerminate(pigpio_handle_); 
+            gpioTerminate(); 
         }
     }
 
@@ -116,18 +116,18 @@ private:
         // FIX: Using gpioSetMode, gpioSetPWMfrequency, gpioSetPWMrange as suggested by compiler.
 
         // M1 (Left) Setup
-        gpioSetMode(pigpio_handle_, M1_PWM_PIN, PI_OUTPUT);
-        gpioSetMode(pigpio_handle_, M1_DIR_PIN, PI_OUTPUT);
-        gpioSetMode(pigpio_handle_, M1_DIR2_PIN, PI_OUTPUT);
+        gpioSetMode(M1_PWM_PIN, PI_OUTPUT);
+        gpioSetMode(M1_DIR_PIN, PI_OUTPUT);
+        gpioSetMode(M1_DIR2_PIN, PI_OUTPUT);
 
         // M2 (Right) Setup
-        gpioSetMode(pigpio_handle_, M2_PWM_PIN, PI_OUTPUT);
-        gpioSetMode(pigpio_handle_, M2_DIR_PIN, PI_OUTPUT);
-        gpioSetMode(pigpio_handle_, M2_DIR2_PIN, PI_OUTPUT);
+        gpioSetMode(M2_PWM_PIN, PI_OUTPUT);
+        gpioSetMode(M2_DIR_PIN, PI_OUTPUT);
+        gpioSetMode(M2_DIR2_PIN, PI_OUTPUT);
         
         // M2 (Software PWM) range setup
-        gpioSetPWMfrequency(pigpio_handle_, M2_PWM_PIN, PWM_FREQUENCY);
-        gpioSetPWMrange(pigpio_handle_, M2_PWM_PIN, SPEED_MAX);
+        gpioSetPWMfrequency(M2_PWM_PIN, PWM_FREQUENCY);
+        gpioSetPWMrange(M2_PWM_PIN, SPEED_MAX);
 
         // Initial stop
         set_motor_speed(M1_PWM_PIN, 0.0);

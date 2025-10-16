@@ -77,7 +77,7 @@ public:
             // NOTE: For ADC, this pin is often unused or acts as a chip select (CS).
             // We set it to input here for compatibility with a simple digital sensor, 
             // but it's not strictly necessary for most ADC setups.
-            gpioSetMode(pigpio_handle_, SENSOR_PIN, PI_INPUT);
+            gpioSetMode(SENSOR_PIN, PI_INPUT);
         }
 
         // 3. Create Publisher and Timer
@@ -94,7 +94,7 @@ public:
         RCLCPP_INFO(this->get_logger(), "Shutting down SensorPublisher. Cleaning up PiGPIO connection.");
         if (pigpio_handle_ >= 0) {
             // Disconnect the client from the pigpiod daemon
-            gpioTerminate(pigpio_handle_); 
+            gpioTerminate(); 
         }
     }
 
