@@ -29,18 +29,18 @@ using namespace std::chrono_literals;
 // --- End Pin Definitions ---
 int pi_handle_ = -1;
 
-void sleeper(int miliseconsd){
-    std::cout << "Starting work... (will sleep for xx ms)" << std::endl;
+// void sleeper(int miliseconsd){
+//     std::cout << "Starting work... (will sleep for xx ms)" << std::endl;
 
-    // --- The key line ---
-    // Sleep for 10 milliseconds
-    std::this_thread::sleep_for(std::chrono::milliseconds(miliseconsd));
-    // ----------------------
+//     // --- The key line ---
+//     // Sleep for 10 milliseconds
+//     std::this_thread::sleep_for(std::chrono::milliseconds(miliseconsd));
+//     // ----------------------
 
-    // Print a message after sleeping
-    std::cout << "Finished sleeping. Continuing work." << std::endl;
+//     // Print a message after sleeping
+//     std::cout << "Finished sleeping. Continuing work." << std::endl;
 
-}
+// }
 
 
 class SensorPublisher : public rclcpp::Node
@@ -112,7 +112,7 @@ private:
         // 1. Trigger the sensor
         gpio_write(pi_handle_,trig_pin, PI_HIGH);
         // gpio_delay(pi_handle_,10); // 10 microsecond pulse
-        sleeper(10);
+        usleep(10); 
         gpio_write(pi_handle_,trig_pin, PI_LOW);
 
         long start_time = get_current_tick(pi_handle_);
