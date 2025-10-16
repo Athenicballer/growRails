@@ -4,6 +4,8 @@
 #include <chrono>   // Required for std::chrono::seconds
 #include <iomanip>
 #include <cmath>
+#include <pigpio.h>
+#include <pigpiod_if2.h>
 
 // Include the standard PiGPIO header for direct library access
 // extern "C" {
