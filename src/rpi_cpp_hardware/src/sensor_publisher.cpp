@@ -2,8 +2,10 @@
 #include <std_msgs/msg/float64.hpp>
 
 // Include the PiGPIO client interface header
-#include <pigpiod_if.h> 
-
+// --- FIX: Wrap C header with extern "C" for C++ compatibility ---
+extern "C" {
+    #include <pigpiod_if.h> 
+}
 #include <chrono>
 #include <cstdlib>
 #include <cmath>

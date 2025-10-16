@@ -2,8 +2,10 @@
 #include <geometry_msgs/msg/twist.hpp>
 
 // Include the PiGPIO client interface header
-#include <pigpiod_if.h> 
-
+// --- FIX: Wrap C header with extern "C" for C++ compatibility ---
+extern "C" {
+    #include <pigpiod_if.h> 
+}
 #include <cmath>
 
 // --- Pin Definitions (BCM Numbering) ---
