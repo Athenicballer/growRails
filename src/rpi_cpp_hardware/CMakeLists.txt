@@ -13,13 +13,14 @@ find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED) 
 
 # Print the current working directory (where this CMakeLists.txt is located)
-message(STATUS "Current Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
+message("Current Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Print the top-level project source directory
-message(STATUS "Top-Level Source Directory: ${CMAKE_SOURCE_DIR}")
+message("Top-Level Source Directory: ${CMAKE_SOURCE_DIR}")
 
 # Print the current directory for build files
-message(STATUS "Current Binary Directory: ${CMAKE_CURRENT_BINARY_DIR}")
+# message(STATUS "Current Binary Directory: ${CMAKE_CURRENT_BINARY_DIR}")
+message("Current Binary Directory: ${CMAKE_CURRENT_BINARY_DIR}")
 
 
 # --- Custom Message Configuration Start ---
