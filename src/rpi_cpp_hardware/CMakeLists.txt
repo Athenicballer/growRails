@@ -55,8 +55,8 @@ install(
 
 
 
-add_executable(rpi_publisher src/sensor_publisher.cpp)
-ament_target_dependencies(rpi_publisher rclcpp std_msgs)
+add_executable(sensor_publisher_node src/sensor_publisher.cpp)
+ament_target_dependencies(sensor_publisher_node rclcpp std_msgs)
 
 # Link the generated message interfaces to the executable
 rosidl_get_typesupport_target(cpp_typesupport_target
@@ -68,7 +68,7 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 #   ${PIGPIO_IF_LIBRARY}
 # )
 
-target_link_libraries(rpi_publisher
+target_link_libraries(sensor_publisher_node
   "${cpp_typesupport_target}"
   ${PIGPIO_LIBRARY}
   ${PIGPIOD_IF2_LIBRARY}
@@ -77,15 +77,15 @@ target_link_libraries(rpi_publisher
 )
 
 install(TARGETS
-  rpi_publisher
+  sensor_publisher_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 
 # --- Motor Driver Executable ---
-add_executable(motor_driver src/motor_driver.cpp)
-ament_target_dependencies(motor_driver rclcpp geometry_msgs)
-target_link_libraries(motor_driver
+add_executable(motor_driver_node src/motor_driver.cpp)
+ament_target_dependencies(motor_driver_node rclcpp geometry_msgs)
+target_link_libraries(motor_driver_node
   ${PIGPIO_LIBRARY}
   ${PIGPIOD_IF2_LIBRARY}
   pthread
@@ -93,20 +93,20 @@ target_link_libraries(motor_driver
 )
 
 install(TARGETS
-  motor_driver
+  motor_driver_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 
 # --- Main Control Logic Executable (Needs Custom Message) ---
-add_executable(main_control_logic src/main_control_logic.cpp)
-ament_target_dependencies(main_control_logic rclcpp std_msgs) # Add custom message dependency if needed later
+add_executable(main_control_logic_node src/main_control_logic.cpp)
+ament_target_dependencies(main_control_logic_node rclcpp std_msgs) # Add custom message dependency if needed later
 
 # Link the generated message interfaces to the executable
 rosidl_get_typesupport_target(main_control_ts_target
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-target_link_libraries(main_control_logic
+target_link_libraries(main_control_logic_node
   "${main_control_ts_target}"
   ${PIGPIO_LIBRARY}
   ${PIGPIOD_IF2_LIBRARY}
@@ -115,7 +115,7 @@ target_link_libraries(main_control_logic
 )
 
 install(TARGETS
-  main_control_logic
+  main_control_logic_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
