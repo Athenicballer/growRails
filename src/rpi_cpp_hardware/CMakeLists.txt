@@ -23,6 +23,7 @@ ament_target_dependencies(motor_driver_node
 # CRUCIAL FIX: Link the external pigpio client library
 target_link_libraries(motor_driver_node
   pigpiod_if
+  pigpio
 )
 install(TARGETS
   motor_driver_node
@@ -41,6 +42,7 @@ ament_target_dependencies(sensor_publisher_node
 # CRUCIAL FIX: Link the external pigpio client library
 target_link_libraries(sensor_publisher_node
   pigpiod_if
+  pigpio
 )
 install(TARGETS
   sensor_publisher_node
