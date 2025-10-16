@@ -14,6 +14,9 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(rclcpp_components REQUIRED)
 
+# Find pigpio library for GPIO access
+find_library(PIGPIO_LIBRARY pigpio REQUIRED)
+find_library(PIGPIO_IF_LIBRARY pigpio_if2 REQUIRED)
 
 # Print the current working directory (where this CMakeLists.txt is located)
 message("Current Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
@@ -71,7 +74,12 @@ ament_target_dependencies(rpi_publisher rclcpp std_msgs)
 # Link the generated message interfaces to the executable
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(rpi_publisher "${cpp_typesupport_target}")
+
+target_link_libraries(rpi_publisher 
+  "${cpp_typesupport_target}"
+  ${PIGPIO_LIBRARY}
+  ${PIGPIO_IF_LIBRARY}
+)
 
 install(TARGETS
   rpi_publisher
