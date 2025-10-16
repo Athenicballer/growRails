@@ -7,6 +7,8 @@
 #include <iomanip>
 #include <cmath> 
 #include <chrono>
+#include <thread>
+
 
 using namespace std::chrono_literals;
 
@@ -26,6 +28,21 @@ using namespace std::chrono_literals;
 #define DISTANCE_MIN    10.0 // cm
 // --- End Pin Definitions ---
 int pi_handle_ = -1;
+
+void sleeper(int miliseconsd){
+    std::cout << "Starting work... (will sleep for xx ms)" << std::endl;
+
+    // --- The key line ---
+    // Sleep for 10 milliseconds
+    std::this_thread::sleep_for(std::chrono::milliseconds(miliseconsd));
+    // ----------------------
+
+    // Print a message after sleeping
+    std::cout << "Finished sleeping. Continuing work." << std::endl;
+
+    return 0;
+}
+
 
 class SensorPublisher : public rclcpp::Node
 {
@@ -95,25 +112,26 @@ private:
     {
         // 1. Trigger the sensor
         gpio_write(pi_handle_,trig_pin, PI_HIGH);
-        gpio_delay(pi_handle_,10); // 10 microsecond pulse
+        // gpio_delay(pi_handle_,10); // 10 microsecond pulse
+        sleeper(10);
         gpio_write(pi_handle_,trig_pin, PI_LOW);
 
-        long start_time = gpioTick();
+        long start_time = get_current_tick(pi_handle_);
         long end_time = start_time;
         long timeout = 50000; // 50ms timeout for max distance ~8m
 
         // 2. Wait for the echo start (HIGH)
-        while (gpio_read(pi_handle_,echo_pin) == PI_LOW && (gpioTick() - start_time) < timeout) {
-            start_time = gpioTick();
+        while (gpio_read(pi_handle_,echo_pin) == PI_LOW && (get_current_tick(pi_handle_) - start_time) < timeout) {
+            start_time = get_current_tick(pi_handle_);
         }
 
         // 3. Wait for the echo end (LOW)
-        while (gpio_read(pi_handle_,echo_pin) == PI_HIGH && (gpioTick() - start_time) < timeout) {
-            end_time = gpioTick();
+        while (gpio_read(pi_handle_,echo_pin) == PI_HIGH && (get_current_tick(pi_handle_) - start_time) < timeout) {
+            end_time = get_current_tick(pi_handle_);
         }
 
         // Check for timeout or error
-        if (gpioTick() - start_time >= timeout || end_time == start_time) {
+        if (get_current_tick(pi_handle_) - start_time >= timeout || end_time == start_time) {
             return -1.0; // Indicate error/timeout
         }
 
