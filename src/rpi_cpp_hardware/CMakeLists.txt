@@ -15,7 +15,8 @@ find_package(hardware_interface REQUIRED)
 find_package(rclcpp_components REQUIRED)
 
 # Find pigpio library for GPIO access
-find_library(PIGPIO_LIBRARY pigpio REQUIRED)
+# Find pigpio library for GPIO access (installed in /usr/local/lib)
+find_library(PIGPIO_LIBRARY pigpio PATHS /usr/local/lib REQUIRED)
 # find_library(PIGPIO_IF_LIBRARY pigpio_if2 REQUIRED)
 
 # Print the current working directory (where this CMakeLists.txt is located)
