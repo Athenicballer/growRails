@@ -12,6 +12,8 @@ find_package(std_msgs REQUIRED)
 # REQUIRED for custom message generation
 find_package(rosidl_default_generators REQUIRED) 
 
+message(STATUS "The current source directory is: ${CMAKE_CURRENT_SOURCE_DIR}")
+
 # --- Custom Message Configuration Start ---
 set(
   MSG_FILES
