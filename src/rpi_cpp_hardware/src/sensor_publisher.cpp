@@ -43,7 +43,8 @@ public:
         
         // --- 1. PiGPIO Initialization/Connection (Client Mode) ---
         // Setting up the client to communicate with the running pigpiod daemon
-        int result = gpioCfgStart(0, 0); 
+        // int result = gpioCfgStart(0, 0); 
+        int result = pigpio_start(NULL, NULL); // Connect to daemon on localhost
         if (result < 0) {
             RCLCPP_ERROR(this->get_logger(), "PiGPIO client connection failed (Error: %d). Ensure 'pigpiod' daemon is running.", result);
             // Fallback: Try direct initialization (requires sudo/permissions)
