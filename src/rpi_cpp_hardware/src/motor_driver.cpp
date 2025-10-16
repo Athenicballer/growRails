@@ -47,7 +47,7 @@ void set_motor_speed(int pwm_pin, double speed) {
     if (pwm_pin == M1_PWM_PIN) {
         // M1 uses hardware PWM. Duty cycle is 0 to 1,000,000.
         // NOTE: No handle argument passed.
-        get_hardware_revision(pi_handle_, pwm_pin, PWM_FREQUENCY, duty_cycle * 1000000 / SPEED_MAX); 
+        hardware_PWM(pi_handle_, pwm_pin, PWM_FREQUENCY, duty_cycle * 1000000 / SPEED_MAX); 
     } else {
         // M2 uses software PWM. Duty cycle is 0 to SPEED_MAX (255).
         // NOTE: No handle argument passed.
