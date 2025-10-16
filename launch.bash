@@ -33,7 +33,7 @@ if ! pgrep "pigpiod" > /dev/null; then
     if [ $? -eq 0 ]; then
         echo "--- PiGPIO Daemon successfully started. Waiting for initialization... ---"
         # Wait a moment for the daemon to initialize the connection sockets
-        sleep 1
+        sleep 3
     else
         echo "--- ERROR: Failed to start pigpiod (sudo pigpiod failed). Check daemon installation and permissions. ---"
         exit 1
