@@ -11,6 +11,9 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 # REQUIRED for custom message generation
 find_package(rosidl_default_generators REQUIRED) 
+find_package(hardware_interface REQUIRED)
+find_package(rclcpp_components REQUIRED)
+
 
 # Print the current working directory (where this CMakeLists.txt is located)
 message("Current Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
