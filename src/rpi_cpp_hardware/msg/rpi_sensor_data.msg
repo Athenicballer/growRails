@@ -1,0 +1,5 @@
+std_msgs/Header header
+float64 us1_distance_cm
+float64 us4_distance_cm
+int32 soil_moisture_adc
+float64 air_temperature_celsius
