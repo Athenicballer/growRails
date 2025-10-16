@@ -34,7 +34,6 @@ rosidl_generate_interfaces(
   ${PROJECT_NAME}
   ${MSG_FILES}
   DEPENDENCIES std_msgs # Depends on std_msgs/Header
-  LANGUAGES cpp
 )
 
 # Export the runtime dependency so other packages can use the generated message
