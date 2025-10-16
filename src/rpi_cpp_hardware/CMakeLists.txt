@@ -65,7 +65,7 @@ install(
 #   )
 # endif()
 
-add_executable(rpi_publisher src/rpi_publisher.cpp)
+add_executable(rpi_publisher src/sensor_publisher.cpp)
 ament_target_dependencies(rpi_publisher rclcpp std_msgs)
 
 # Link the generated message interfaces to the executable
