@@ -3,6 +3,10 @@
 # Ensure the script exits immediately if any command fails (e.g., if the build fails)
 set -e 
 
+echo "--**** PULLING GIT **** ----"
+git pull
+
+
 # --- 1. SOURCE ROS 2 ENVIRONMENT ---
 echo "--- Sourcing ROS 2 environment (Jazzy) ---"
 source /opt/ros/jazzy/setup.bash
@@ -12,6 +16,8 @@ source /opt/ros/jazzy/setup.bash
 # Compiles the C++ nodes and installs the launch file
 echo "--- Building rpi_cpp_hardware package ---"
 colcon build --packages-select rpi_cpp_hardware 
+
+
 
 # Check the build result
 if [ $? -ne 0 ]; then
