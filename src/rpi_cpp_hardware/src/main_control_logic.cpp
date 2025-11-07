@@ -41,8 +41,8 @@ private:
     void sensor_data_callback(const rpi_cpp_hardware::msg::RpiSensorData::SharedPtr msg)
     {
         // Get the relevant data from the incoming ROS message
-        double front_distance = msg->us1_distance_cm;
-        double rear_distance = msg->us4_distance_cm;
+        double front_distance = msg->us4_distance_cm;
+        double rear_distance = msg->us1_distance_cm;
         int soil_moisture = msg->soil_moisture_adc;
         double air_temp = msg->air_temperature_celsius;
 
