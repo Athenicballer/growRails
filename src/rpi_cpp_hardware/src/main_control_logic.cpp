@@ -62,6 +62,8 @@ private:
         if (rear_distance < DISTANCE_MIN && rear_distance > 0) {
             RCLCPP_WARN(this->get_logger(), " | WARNING: Object close behind! Reversing motion restricted.");
             // We could send a command here to prevent reverse motion if the robot was trying to stop/reverse
+            publish_command("FORWARD");
+
         }
 
         // --- Decision Logic: Soil Check ---
